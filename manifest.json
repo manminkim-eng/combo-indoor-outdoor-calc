@@ -1,20 +1,33 @@
 {
   "name": "겸용 펌프 용량 계산서 — 옥내소화전 + 옥외소화전",
   "short_name": "겸용(옥내+옥외)",
-  "description": "겸용 펌프 용량 계산서 — 옥내소화전 + 옥외소화전 통합 소방시설 설계",
+  "description": "NFTC 102 옥내소화전 + NFPC 109 옥외소화전 겸용 펌프 용량 계산 전용 앱 — ENGINEER KIM MANMIN Ver-2.0",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#f1f5f9",
+  "orientation": "any",
+  "background_color": "#0f172a",
   "theme_color": "#0e7490",
   "lang": "ko",
   "categories": ["utilities", "productivity"],
   "icons": [
-    { "src": "icons/favicon-16.png",  "sizes": "16x16",   "type": "image/png" },
-    { "src": "icons/favicon-32.png",  "sizes": "32x32",   "type": "image/png" },
-    { "src": "icons/icon-192.png",    "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png",    "sizes": "512x512", "type": "image/png", "purpose": "any" }
+    { "src": "icons/icon-72.png",  "sizes": "72x72",   "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-96.png",  "sizes": "96x96",   "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-128.png", "sizes": "128x128", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-144.png", "sizes": "144x144", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-152.png", "sizes": "152x152", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-384.png", "sizes": "384x384", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "새 겸용 계산서",
+      "short_name": "새 계산서",
+      "description": "옥내+옥외 겸용 펌프 용량 계산서를 새로 작성합니다",
+      "url": "./index.html",
+      "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
+    }
   ],
   "prefer_related_applications": false
 }

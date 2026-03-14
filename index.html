@@ -44,6 +44,134 @@ input,select,button,td,th,div,span,p,h1,h2,label{font-family:'Noto Sans KR',sans
 #dev-stamp{display:none !important;}
 .pwa-install-banner{background:linear-gradient(135deg,#0e7490 0%,#164e63 100%);border:1px solid rgba(255,255,255,.2);animation:slideUp .4s ease-out;}
 @keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ════════════════════════════════════════════
+   📐 계산식 안내 FAB
+════════════════════════════════════════════ */
+.fml-fab{
+  position:fixed;bottom:82px;right:18px;z-index:1200;
+  background:linear-gradient(135deg,#0e7490,#164e63);
+  color:white;border:none;border-radius:16px;
+  padding:11px 15px;cursor:pointer;
+  box-shadow:0 4px 20px rgba(14,116,144,0.55);
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  font-family:'Noto Sans KR',sans-serif;line-height:1.3;
+  transition:transform .15s,box-shadow .15s;
+}
+.fml-fab:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(14,116,144,0.72);}
+.fml-fab:active{transform:translateY(0);}
+
+/* ════════════════════════════════════════════
+   모달 오버레이
+════════════════════════════════════════════ */
+.fml-overlay{
+  position:fixed;inset:0;z-index:9000;
+  background:rgba(0,0,0,0.62);backdrop-filter:blur(5px);
+  display:flex;align-items:center;justify-content:center;padding:16px;
+  animation:fmlFadeIn .2s ease-out;
+}
+@keyframes fmlFadeIn{from{opacity:0;}to{opacity:1;}}
+
+.fml-box{
+  background:#fff;border-radius:20px;
+  width:100%;max-width:820px;
+  max-height:calc(100vh - 32px);
+  display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 30px 80px rgba(0,0,0,0.38);
+  animation:fmlSlideUp .26s cubic-bezier(0.34,1.5,0.64,1);
+}
+@keyframes fmlSlideUp{from{transform:translateY(30px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+
+/* 헤더 */
+.fml-hd{
+  background:linear-gradient(135deg,#0f172a,#1e3a5f,#0e7490);
+  color:white;padding:18px 22px 0;flex-shrink:0;
+}
+.fml-hd-row{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}
+.fml-close{
+  background:rgba(255,255,255,0.13);border:none;color:white;
+  border-radius:50%;width:34px;height:34px;flex-shrink:0;
+  cursor:pointer;font-size:18px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .15s;
+}
+.fml-close:hover{background:rgba(255,255,255,0.28);}
+
+/* 내부 탭바 */
+.fml-tabs{
+  display:flex;overflow-x:auto;gap:0;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+.fml-tabs::-webkit-scrollbar{display:none;}
+.fml-tab{
+  padding:9px 18px;border:none;background:transparent;
+  color:rgba(255,255,255,0.6);font-size:12px;font-weight:700;
+  font-family:'Noto Sans KR',sans-serif;cursor:pointer;white-space:nowrap;
+  border-bottom:3px solid transparent;transition:all .15s;flex-shrink:0;
+}
+.fml-tab.on{color:#fff;border-bottom-color:#67e8f9;}
+.fml-tab:hover:not(.on){color:rgba(255,255,255,0.88);}
+
+/* 바디 */
+.fml-bd{
+  overflow-y:auto;padding:20px 22px 28px;flex:1;
+  -webkit-overflow-scrolling:touch;
+}
+.fml-bd::-webkit-scrollbar{width:5px;}
+.fml-bd::-webkit-scrollbar-thumb{background:#a5f3fc;border-radius:3px;}
+.fml-bd::-webkit-scrollbar-track{background:transparent;}
+
+/* 섹션 */
+.fml-sec{margin-bottom:20px;}
+.fml-sec-ttl{
+  font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;
+  margin-bottom:10px;display:flex;align-items:center;gap:7px;
+  border-left:3px solid currentColor;padding-left:9px;
+}
+/* 카드 */
+.fml-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:8px;}
+.fml-card-ttl{font-size:12px;font-weight:700;color:#1e293b;margin-bottom:6px;}
+.fml-eq{
+  display:block;font-family:'Noto Sans Mono',monospace;
+  font-size:12.5px;font-weight:700;color:#0e7490;
+  background:#ecfeff;border-radius:6px;
+  padding:7px 11px;margin:6px 0;
+  word-break:break-all;line-height:1.6;
+}
+.fml-eq.hi{background:#fefce8;color:#92400e;}
+.fml-eq.red{background:#fff1f2;color:#b91c1c;}
+.fml-eq.grn{background:#f0fdf4;color:#15803d;}
+.fml-note{font-size:10px;color:#6b7280;margin-top:5px;line-height:1.8;}
+/* 2열 그리드 */
+.fml-g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+/* 강조 박스 */
+.fml-hi{border:1.5px solid #a5f3fc;background:#ecfeff;border-radius:10px;padding:12px 14px;margin-bottom:8px;}
+.fml-hi.red{border-color:#fecaca;background:#fff1f2;}
+.fml-hi.grn{border-color:#bbf7d0;background:#f0fdf4;}
+
+/* ── 반응형 ── */
+/* 모바일: 바텀시트 */
+@media(max-width:640px){
+  .fml-overlay{padding:0;align-items:flex-end;}
+  .fml-box{
+    border-radius:20px 20px 0 0;max-height:92vh;
+    animation:fmlMobile .3s cubic-bezier(0.34,1.2,0.64,1);
+  }
+  @keyframes fmlMobile{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  .fml-hd{padding:14px 16px 0;}
+  .fml-bd{padding:16px 16px 36px;}
+  .fml-g2{grid-template-columns:1fr;}
+  .fml-tab{padding:9px 13px;font-size:11px;}
+  .fml-fab{bottom:74px;right:14px;padding:10px 13px;}
+}
+/* 태블릿 */
+@media(min-width:641px) and (max-width:1024px){
+  .fml-box{max-width:88vw;max-height:88vh;}
+}
+/* 데스크톱 */
+@media(min-width:1025px){
+  .fml-box{max-width:840px;}
+}
 </style>
 </head>
 <body>
@@ -253,10 +381,281 @@ function PipeTable({segs,setSegs,pipeType,pipeSizes,velLimit,velLimit2,label,vel
 }
 
 /* ══════════════════════════════════════════════════════════════
+   계산식 안내 모달 — 옥내+옥외 겸용 펌프 (반응형)
+══════════════════════════════════════════════════════════════ */
+function FormulaModal({onClose}){
+  const [activeTab,setActiveTab]=React.useState(0);
+  const TABS=["옥내소화전 (102)","옥외소화전 (109)","겸용펌프 산출","관부속 참고"];
+  const sp=e=>e.stopPropagation();
+
+  /* ─── 탭0: 옥내소화전 ─────────────────────────────────── */
+  const T0=(
+    <>
+      <div className="fml-sec">
+        <div className="fml-sec-ttl" style={{color:"#b91c1c"}}>💧 수원 용량 (NFTC 102 §2.1.1.4)</div>
+        <div className="fml-hi red">
+          <div className="fml-card-ttl" style={{color:"#b91c1c"}}>D — 수원 산정</div>
+          <code className="fml-eq red">수원(m³) = N개 × 130 ℓ/min × 20분 ÷ 1,000</code>
+          <div className="fml-note">최대 N = 5개 동시사용 한도 | 개당 방사량 130 ℓ/min 고정 (§2.2.1.3)</div>
+        </div>
+      </div>
+
+      <div className="fml-sec">
+        <div className="fml-sec-ttl" style={{color:"#b91c1c"}}>📏 전양정 구성 (NFTC 102 §2.3.3)</div>
+        <div className="fml-g2">
+          <div className="fml-card">
+            <div className="fml-card-ttl">E — 실양정 h₁</div>
+            <code className="fml-eq red">펌프 ↔ 최고층 소화전 높이차</code>
+            <div className="fml-note">설계 도면 기준 직접 측정</div>
+          </div>
+          <div className="fml-card">
+            <div className="fml-card-ttl">H₄ — 노즐 환산수두</div>
+            <code className="fml-eq red">H₄ = 17 m (고정) ← 0.17 MPa</code>
+            <div className="fml-note">방수압 최솟값 0.17 MPa = 17 m</div>
+          </div>
+        </div>
+        <div className="fml-card">
+          <div className="fml-card-ttl">G — 호스 마찰손실 h₃</div>
+          <code className="fml-eq red">G = 마찰계수(m/100m) × 호스길이(m) ÷ 100</code>
+          <div className="fml-note">
+            40mm 아마호스: 26 m/100m &nbsp;|&nbsp; 40mm 고무내장: 12 m/100m<br/>
+            50mm 아마호스: 7 m/100m &nbsp;|&nbsp; 50mm 고무내장: 3 m/100m<br/>
+            25mm 호스릴: 고정 14 m (호스길이 무관)
+          </div>
+        </div>
+        <div className="fml-card">
+          <div className="fml-card-ttl">F — 배관 마찰손실 h₂ (Hazen-Williams)</div>
+          <code className="fml-eq red">h = (10.67 × Q¹·⁸⁵²) ÷ (C¹·⁸⁵² × D⁴·⁸⁷) × L</code>
+          <div className="fml-note">유속 제한 §2.3.5: 펌프 토출 측 주배관 ≤ 4 m/s</div>
+        </div>
+        <div className="fml-hi red">
+          <div className="fml-card-ttl" style={{color:"#b91c1c"}}>J — 전양정 최종값</div>
+          <code className="fml-eq hi">J = ⌈(E + F + G + H₄) × 1.1⌉ [m] — 올림 적용</code>
+          <div className="fml-note">안전율 10% 가산 — §2.3.3.1</div>
+        </div>
+      </div>
+    </>
+  );
+
+  /* ─── 탭1: 옥외소화전 ─────────────────────────────────── */
+  const T1=(
+    <>
+      <div className="fml-sec">
+        <div className="fml-sec-ttl" style={{color:"#15803d"}}>💧 수원 용량 (NFPC 109 제4조①)</div>
+        <div className="fml-hi grn">
+          <div className="fml-card-ttl" style={{color:"#15803d"}}>D — 수원 산정</div>
+          <code className="fml-eq grn">수원(m³) = N개 × 7 m³</code>
+          <div className="fml-note">최대 N = 2개 동시사용 한도 | 1개 → 7 m³ / 2개 → 14 m³</div>
+        </div>
+      </div>
+
+      <div className="fml-sec">
+        <div className="fml-sec-ttl" style={{color:"#15803d"}}>📏 전양정 구성 (NFPC 109 제5조③)</div>
+        <div className="fml-g2">
+          <div className="fml-card">
+            <div className="fml-card-ttl">E — 실양정 h₁</div>
+            <code className="fml-eq grn">펌프 ↔ 최원격 옥외소화전 높이차</code>
+            <div className="fml-note">설계 도면 기준 직접 측정</div>
+          </div>
+          <div className="fml-card">
+            <div className="fml-card-ttl">H₄ — 노즐 환산수두</div>
+            <code className="fml-eq grn">H₄ = 25 m (고정) ← 0.25 MPa</code>
+            <div className="fml-note">방수압 최솟값 0.25 MPa = 25 m</div>
+          </div>
+        </div>
+        <div className="fml-card">
+          <div className="fml-card-ttl">G — 호스 마찰손실 h₃ (65mm 전용, NFPC 109 제6조②)</div>
+          <code className="fml-eq grn">G = 마찰계수(m/100m) × 호스길이(m) ÷ 100</code>
+          <div className="fml-note">
+            65mm 마(아마)호스: 8 m/100m &nbsp;|&nbsp; 65mm 고무내장호스: 4 m/100m<br/>
+            방사량: 350 ℓ/min 이상 | 동시사용: 최대 2개
+          </div>
+        </div>
+        <div className="fml-card">
+          <div className="fml-card-ttl">F — 배관 마찰손실 h₂ (Hazen-Williams)</div>
+          <code className="fml-eq grn">h = (10.67 × Q¹·⁸⁵²) ÷ (C¹·⁸⁵² × D⁴·⁸⁷) × L</code>
+          <div className="fml-note">C값: KS D3507·3562 = 120 / STS·CPVC = 150</div>
+        </div>
+        <div className="fml-hi grn">
+          <div className="fml-card-ttl" style={{color:"#15803d"}}>J — 전양정 최종값</div>
+          <code className="fml-eq hi">J = ⌈(E + F + G + H₄) × 1.1⌉ [m] — 올림 적용</code>
+          <div className="fml-note">안전율 10% 가산 후 올림 처리 — NFPC 109 제5조③</div>
+        </div>
+      </div>
+    </>
+  );
+
+  /* ─── 탭2: 겸용펌프 산출 ──────────────────────────────── */
+  const T2=(
+    <>
+      <div className="fml-sec">
+        <div className="fml-sec-ttl" style={{color:"#0e7490"}}>📐 겸용 펌프 설계 원칙</div>
+        <div className="fml-g2">
+          <div className="fml-hi">
+            <div className="fml-card-ttl" style={{color:"#0e7490"}}>① 토출량 — 합산</div>
+            <code className="fml-eq">Q = Q옥내 + Q옥외 [ℓ/min]</code>
+            <div className="fml-note">두 설비 유량 단순 합산</div>
+          </div>
+          <div className="fml-hi">
+            <div className="fml-card-ttl" style={{color:"#0e7490"}}>② 전양정 — MAX 채택</div>
+            <code className="fml-eq">H = max(J옥내, J옥외) [m]</code>
+            <div className="fml-note">더 높은 양정 기준 설비 채택</div>
+          </div>
+        </div>
+        <div className="fml-hi">
+          <div className="fml-card-ttl" style={{color:"#0e7490"}}>③ 수원 — 합산</div>
+          <code className="fml-eq">D = D옥내 + D옥외 [m³]</code>
+          <div className="fml-note">두 설비 수원 단순 합산</div>
+        </div>
+      </div>
+
+      <div className="fml-sec">
+        <div className="fml-sec-ttl" style={{color:"#0e7490"}}>⚡ 전동기 동력 계산</div>
+        <div className="fml-card">
+          <div className="fml-card-ttl">O — 전동기 이론 출력 (kW)</div>
+          <code className="fml-eq">P = 0.163 × L(m³/min) × H(m) × K ÷ η</code>
+          <div className="fml-note">
+            0.163: 단위환산 상수 (ρ·g ÷ 60,000)<br/>
+            L = 합산 토출량(ℓ/min) ÷ 1,000 → m³/min<br/>
+            K: 전달계수 — 전동기 직결 1.1 / 전동기 이외 원동기 1.15<br/>
+            η: 펌프 효율 (40A=0.40 / 65A=0.55 / 100A=0.60 / 150A=0.70)
+          </div>
+        </div>
+        <div className="fml-hi">
+          <div className="fml-card-ttl" style={{color:"#0e7490"}}>P — 전동기 채택 출력 (HP)</div>
+          <code className="fml-eq hi">HP = P(kW) × 1.341 → 상위 표준 규격 선정</code>
+          <div className="fml-note">표준: 3·5·7.5·10·15·20·25·30·40·50·60·75·100·125·150·200 HP</div>
+        </div>
+      </div>
+
+      <div className="fml-sec">
+        <div className="fml-sec-ttl" style={{color:"#0e7490"}}>📋 적용 법령</div>
+        <div className="fml-card">
+          <div className="fml-note" style={{fontSize:11,lineHeight:2.1}}>
+            ① NFPC/NFTC 102 (옥내소화전) [시행 2022.12.1.]<br/>
+            &nbsp;&nbsp;- 수원: N×130ℓ/min×20min÷1,000 | 방수압 0.17~0.7 MPa | 방수량 ≥ 130 ℓ/min<br/>
+            ② NFPC 109 (옥외소화전) [시행 2026.3.1.]<br/>
+            &nbsp;&nbsp;- 수원: N×7 m³ (최대 2개) | 방수압 ≥ 0.25 MPa | 방수량 ≥ 350 ℓ/min<br/>
+            ③ 겸용 원칙: 유량 합산 / 양정 MAX / 수원 합산<br/>
+            ④ 배관 마찰손실: Hazen-Williams 공식 적용
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
+  /* ─── 탭3: 관부속 참고 ────────────────────────────────── */
+  const T3=(
+    <>
+      <div className="fml-sec">
+        <div className="fml-sec-ttl" style={{color:"#0e7490"}}>🔩 상당직관 계산 원리</div>
+        <div className="fml-hi">
+          <div className="fml-card-ttl" style={{color:"#0e7490"}}>기본 공식</div>
+          <code className="fml-eq hi">상당직관(m) = Σ [ 수량 × 관경별 환산값 ]</code>
+          <div className="fml-note">나사 접합 기준 (KS B 6721 준용)</div>
+        </div>
+        <div className="fml-card">
+          <div className="fml-card-ttl">관부속 대체 적용</div>
+          <code className="fml-eq" style={{fontSize:11}}>Reducer     → 45°Elbow (작은 관경 기준)
+Coupling    → 직류 Tee
+Union·Flange·Socket → 생략 (손실 미소)
+Alarm·Foot V/V·Strainer → Angle V/V
+Auto·Glove V/V → Ball V/V</code>
+        </div>
+      </div>
+
+      <div className="fml-sec">
+        <div className="fml-sec-ttl" style={{color:"#0e7490"}}>📐 관경별 상당직관 환산표 (m)</div>
+        <div style={{overflowX:"auto",borderRadius:8,border:"1px solid #e2e8f0"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:540}}>
+            <thead>
+              <tr style={{background:"#164e63",color:"white"}}>
+                {["관경(A)","90°Elbow","45°Elbow","분류 Tee","직류 Tee","Gate V/V","Ball V/V","Angle V/V","Check V/V"].map(h=>(
+                  <th key={h} style={{padding:"6px 5px",textAlign:"center",fontWeight:700,fontSize:10,whiteSpace:"nowrap",border:"1px solid #0e7490"}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                [25, 0.9,0.54,1.5,0.27,0.18, 7.5, 4.5, 2.0],
+                [32, 1.2,0.72,1.8,0.36,0.24,10.5, 5.4, 2.5],
+                [40, 1.5,0.90,2.1,0.45,0.30,13.8, 6.5, 3.1],
+                [50, 2.1,1.20,3.0,0.60,0.39,16.5, 8.4, 4.0],
+                [65, 2.4,1.30,3.6,0.75,0.48,19.5,10.2, 4.6],
+                [80, 3.0,1.80,4.5,0.90,0.60,24.0,12.0, 5.7],
+                [100,4.2,2.40,6.3,1.20,0.81,37.5,16.5, 7.6],
+                [125,5.1,3.00,7.5,1.50,0.99,42.0,21.0,10.0],
+                [150,6.0,3.60,9.0,1.80,1.20,49.5,24.0,12.0],
+                [200,6.5,3.70,14.0,4.00,1.40,70.0,33.0,15.0],
+              ].map((row,i)=>(
+                <tr key={i} style={{background:i%2===0?"white":"#f0fdfa"}}>
+                  {row.map((v,j)=>(
+                    <td key={j} style={{padding:"5px 4px",textAlign:"center",
+                      fontFamily:"'Noto Sans Mono',monospace",fontSize:11,
+                      border:"1px solid #d1d5db",
+                      fontWeight:j===0?700:400,
+                      color:j===0?"#0e7490":"#111827"}}>
+                      {j===0?v+"A":Number(v).toFixed(j>=5?1:2)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="fml-note" style={{marginTop:8}}>
+          C값: KS D3507·KS D3562 = 120 &nbsp;|&nbsp; STS(스테인리스)·CPVC = 150
+        </div>
+      </div>
+    </>
+  );
+
+  const PANELS=[T0,T1,T2,T3];
+
+  return(
+    <div className="fml-overlay no-print" onClick={onClose}>
+      <div className="fml-box" onClick={sp}>
+
+        {/* 헤더 */}
+        <div className="fml-hd">
+          <div className="fml-hd-row">
+            <div>
+              <div style={{fontSize:14,fontWeight:900,letterSpacing:"0.04em",marginBottom:3}}>
+                📐 계산식 안내
+              </div>
+              <div style={{fontSize:10,opacity:0.65,fontWeight:500}}>
+                NFTC 102 옥내소화전 + NFPC 109 옥외소화전 겸용
+              </div>
+            </div>
+            <button className="fml-close" onClick={onClose} aria-label="닫기">✕</button>
+          </div>
+          <div className="fml-tabs">
+            {TABS.map((t,i)=>(
+              <button key={i}
+                className={`fml-tab${activeTab===i?" on":""}`}
+                onClick={()=>setActiveTab(i)}>
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 바디 */}
+        <div className="fml-bd">
+          {PANELS[activeTab]}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
    메인 앱
 ══════════════════════════════════════════════════════════════ */
 function App(){
   const [tab,setTab]=useState(0);
+  const [showFormula,setShowFormula]=useState(false);
   const [proj,setProj]=useState({name:"만민 건축사 신사옥 신축공사 현장",designer:"김만민",date:new Date().toISOString().slice(0,10)});
 
   /* 옥내소화전 상태 */
@@ -819,6 +1218,16 @@ function App(){
   </div>
 
   {showInstallBanner&&<div style={{position:"fixed",bottom:16,left:16,right:16,zIndex:9999}} className="pwa-install-banner"><div style={{borderRadius:16,padding:16,display:"flex",alignItems:"center",gap:12}}><img src="icons/icon-192.png" style={{width:48,height:48,borderRadius:12,flexShrink:0,boxShadow:"0 4px 12px rgba(0,0,0,0.3)"}} alt=""/><div style={{flex:1,minWidth:0}}><div style={{color:"white",fontSize:13,fontWeight:800}}>홈 화면에 설치하시겠습니까?</div><div style={{color:"#a5f3fc",fontSize:10,fontWeight:600,marginTop:4}}>오프라인에서도 사용 가능합니다</div></div><div style={{display:"flex",gap:8,flexShrink:0}}><button onClick={()=>setShowInstallBanner(false)} style={{color:"rgba(255,255,255,0.6)",fontSize:11,fontWeight:700,padding:"8px 12px",border:"none",background:"transparent",cursor:"pointer",borderRadius:8}}>닫기</button><button onClick={handleInstall} style={{background:"white",color:"#0e7490",fontSize:11,fontWeight:900,padding:"8px 16px",border:"none",borderRadius:8,cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.2)"}}>설치</button></div></div></div>}
+
+  {/* ═══ 계산식 안내 FAB ═══ */}
+  <button className="fml-fab no-print" onClick={()=>setShowFormula(true)} aria-label="계산식 안내 열기">
+    <span style={{fontSize:20,lineHeight:1}}>📐</span>
+    <span style={{fontSize:10,fontWeight:800,letterSpacing:"0.04em"}}>계산식</span>
+    <span style={{fontSize:9,opacity:0.75}}>안내</span>
+  </button>
+
+  {/* ═══ 계산식 안내 모달 ═══ */}
+  {showFormula&&<FormulaModal onClose={()=>setShowFormula(false)}/>}
 
   </>;
 }
