@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>겸용 펌프 용량 계산서 — 옥내소화전 + 옥외소화전</title>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#0e7490"/>
+<meta name="description" content="겸용 펌프 용량 계산서 — 옥내소화전 + 옥외소화전 통합 소방시설 설계"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="겸용(옥내+옥외)"/>
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png"/>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png"/>
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&family=Noto+Sans+Mono:wght@400;600;700&family=Orbitron:wght@700;900&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:#f1f5f9;-webkit-font-smoothing:antialiased;}
+input,select,button,td,th,div,span,p,h1,h2,label{font-family:'Noto Sans KR',sans-serif !important;}
+@media print{
+  @page{
+    size:A4 portrait;
+    margin:14mm 12mm 22mm 14mm;
+    @bottom-right{
+      content:"MANMIN-Ver2.0";
+      font-family:'Orbitron',sans-serif;
+      font-size:8pt;font-weight:700;color:#9ca3af;letter-spacing:0.08em;
+    }
+  }
+  body{background:white !important;}
+  #no-print{display:none !important;}
+  .no-print{display:none !important;}
+  #report-zone{box-shadow:none !important;border:none !important;padding:0 !important;margin:0 !important;border-radius:0 !important;}
+  .page-break{page-break-before:always;}
+  .print-section{break-inside:avoid;page-break-inside:avoid;}
+  #dev-stamp{display:block !important;text-align:right;font-size:9px;color:#94a3b8;margin-top:8px;}
+}
+#dev-stamp{display:none !important;}
+.pwa-install-banner{background:linear-gradient(135deg,#0e7490 0%,#164e63 100%);border:1px solid rgba(255,255,255,.2);animation:slideUp .4s ease-out;}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="env,react">
+const { useState, useMemo, useEffect } = React;
+
+/* ══════════════════════════════════════════════════════════════
+   공통 상수
+══════════════════════════════════════════════════════════════ */
+/* 옥내소화전 (NFPC/NFTC 102) */
+const H_FLOW_PER  = 130;   // 옥내소화전 개당 방사량 (ℓ/min)
+const H_NOZZLE    = 17;    // 노즐선단 방수압력 환산수두 0.17 MPa
+const H_WATER_T   = 20;    // 방사시간 (min)
+const H_MAX_N     = 5;     // 최대 동시사용 (NFTC 102 최대 5개)
+
+/* 옥외소화전 (NFPC 109) */
+const O_FLOW_PER  = 350;   // 옥외소화전 개당 방사량 (ℓ/min)
+const O_NOZZLE    = 25;    // 노즐선단 방수압력 환산수두 0.25 MPa
+const O_WATER_T   = 20;    // 방사시간 (min)
+const O_MAX_N     = 2;     // 최대 동시사용 (NFPC 109 최대 2개)
+const O_WATER_PER = 7;     // 옥외소화전 1개당 수원 (m³)
+
+const PIPE_CONFIG = {
+  SCH10:{label:"배관용 탄소강관 KS D3507 (백관)",       shortLabel:"KS D3507",C:120,
+    inner:{25:27.6,32:36.2,40:42.1,50:53.2,65:69.0,80:81.0,100:105.3,125:130.1,150:155.5,200:204.6}},
+  SCH40:{label:"압력배관용 탄소강관 KS D3562 (흑관)",   shortLabel:"KS D3562",C:120,
+    inner:{25:26.6,32:35.1,40:40.9,50:52.5,65:62.7,80:77.9,100:102.3,125:128.2,150:154.1,200:202.7}},
+  STS:  {label:"배관용 스테인리스강관 KS D3595",        shortLabel:"STS",     C:150,
+    inner:{25:27.6,32:36.8,40:42.8,50:54.8,65:70.0,80:85.0,100:108.2,125:133.4,150:160.0,200:210.0}},
+  CPVC: {label:"내식성 CPVC관 (소방용)",               shortLabel:"CPVC",    C:150,
+    inner:{25:26.6,32:35.1,40:40.9,50:52.5,65:62.7,80:79.4,100:101.6,125:127.0,150:154.1,200:203.2}},
+};
+const FITTING_EQ={
+  25:[0.9,0.54,1.5,0.27,0.18,7.5,4.5,2.0],  32:[1.2,0.72,1.8,0.36,0.24,10.5,5.4,2.5],
+  40:[1.5,0.90,2.1,0.45,0.30,13.8,6.5,3.1], 50:[2.1,1.20,3.0,0.60,0.39,16.5,8.4,4.0],
+  65:[2.4,1.30,3.6,0.75,0.48,19.5,10.2,4.6],80:[3.0,1.80,4.5,0.90,0.60,24.0,12.0,5.7],
+  100:[4.2,2.40,6.3,1.20,0.81,37.5,16.5,7.6],125:[5.1,3.00,7.5,1.50,0.99,42.0,21.0,10.0],
+  150:[6.0,3.60,9.0,1.80,1.20,49.5,24.0,12.0],200:[6.5,3.70,14.0,4.00,1.40,70.0,33.0,15.0],
+};
+/* 옥내소화전 호스 */
+const H_HOSE_TYPES={
+  1:{label:"40mm 아마호스",     rate:26,fixed:null},
+  2:{label:"40mm 고무내장호스", rate:12,fixed:null},
+  3:{label:"50mm 아마호스",     rate:7, fixed:null},
+  4:{label:"50mm 고무내장호스", rate:3, fixed:null},
+  5:{label:"25mm 호스릴",       rate:0, fixed:14},
+};
+/* 옥외소화전 호스 — 65mm 전용 (NFPC 109 제6조②) */
+const O_HOSE_TYPES={
+  1:{label:"65mm 마(아마)호스",  rate:8, fixed:null},
+  2:{label:"65mm 고무내장호스",  rate:4, fixed:null},
+};
+const TRANS_TYPE={1:{label:"전동기 직결",k:1.1},2:{label:"전동기 이외의 원동기",k:1.15}};
+const H_PIPE_SIZES=[40,50,65,80,100,125,150,200];
+const O_PIPE_SIZES=[40,50,65,80,100,125,150,200];
+const PUMP_SIZES=[40,50,65,80,100,125,150];
+const HP_STEPS=[3,5,7.5,10,15,20,25,30,40,50,60,75,100,125,150,200];
+const BD="1px solid #d1d5db";
+
+function calcFriction(Q,D,pipeType){
+  if(!Q||!D)return 0;
+  const cfg=PIPE_CONFIG[pipeType]||PIPE_CONFIG.SCH10;
+  const id=(cfg.inner[D]||D)/1000;
+  const Qm=Q/1000/60;
+  return 10.67*Math.pow(Qm,1.852)/(Math.pow(cfg.C,1.852)*Math.pow(id,4.87));
+}
+function calcVelocity(Q,D,pipeType){
+  if(!Q||!D)return 0;
+  const cfg=PIPE_CONFIG[pipeType]||PIPE_CONFIG.SCH10;
+  const id=(cfg.inner[D]||D)/1000;
+  const Qm=Q/1000/60;
+  return Qm/(Math.PI/4*id*id);
+}
+function nextHP(kw){const hp=kw*1.341;for(const h of HP_STEPS){if(h>=hp)return h;}return Math.ceil(hp/5)*5;}
+const f2=v=>isNaN(v)?"-":Number(v).toFixed(2);
+const f3=v=>isNaN(v)?"-":Number(v).toFixed(3);
+const ff=(v,d=1)=>isNaN(v)?"-":Number(v).toFixed(d);
+
+/* ── 공통 UI 컴포넌트 ── */
+function LabelEl({children}){return <div style={{fontSize:11,fontWeight:700,color:"#374151",marginBottom:5,letterSpacing:"0.02em"}}>{children}</div>;}
+function Sel({val,onChange,children,style={}}){
+  return <select value={val} onChange={e=>onChange(e.target.value)}
+    style={{width:"100%",padding:"8px 12px",borderRadius:8,border:BD,background:"white",fontSize:13,outline:"none",...style}}>{children}</select>;
+}
+function InpNum({val,onChange,unit,min,max}){
+  return <div style={{display:"flex",alignItems:"center",gap:6}}>
+    <input type="number" value={val} min={min} max={max}
+      onChange={e=>onChange(+(e.target.value))}
+      style={{width:"100%",padding:"8px 12px",borderRadius:8,border:BD,background:"white",fontSize:13,outline:"none"}}/>
+    {unit&&<span style={{fontSize:12,color:"#6b7280",whiteSpace:"nowrap"}}>{unit}</span>}
+  </div>;
+}
+function EffInp({val,onChange}){
+  return <div style={{display:"flex",alignItems:"center",gap:6}}>
+    <input type="number" value={val} min={10} max={80} step={1}
+      onChange={e=>{const v=Math.min(80,Math.max(10,parseInt(e.target.value)||10));onChange(v);}}
+      style={{width:"100%",padding:"8px 12px",borderRadius:8,border:BD,background:"white",fontSize:13,outline:"none"}}/>
+    <span style={{fontSize:12,color:"#6b7280",whiteSpace:"nowrap"}}>%</span>
+  </div>;
+}
+function Box({title,children,color="#1e3a5f"}){
+  return <div style={{background:"white",borderRadius:12,boxShadow:"0 1px 4px rgba(0,0,0,0.08)",marginBottom:16,overflow:"hidden"}}>
+    <div style={{background:color,color:"white",padding:"10px 18px",fontSize:13,fontWeight:700,letterSpacing:"0.04em"}}>{title}</div>
+    <div style={{padding:16}}>{children}</div>
+  </div>;
+}
+function Card({label,value,unit,formula,bc}){
+  const cols={blue:["#eff6ff","#1d4ed8"],orange:["#fff7ed","#c2410c"],green:["#f0fdf4","#15803d"],red:["#fef2f2","#b91c1c"],teal:["#f0fdfa","#0f766e"]};
+  const [bg,tc]=cols[bc]||["#f8fafc","#374151"];
+  return <div style={{background:bg,borderRadius:10,padding:"12px 14px",border:`1px solid ${tc}22`}}>
+    <div style={{fontSize:10,color:"#6b7280",marginBottom:4}}>{label}</div>
+    <div style={{fontSize:20,fontWeight:900,color:tc,fontFamily:"'Noto Sans Mono',monospace",lineHeight:1.1}}>
+      {value}<span style={{fontSize:11,color:"#9ca3af",marginLeft:4}}>{unit}</span>
+    </div>
+    {formula&&<div style={{fontSize:9,color:"#9ca3af",marginTop:4,fontFamily:"'Noto Sans Mono',monospace"}}>{formula}</div>}
+  </div>;
+}
+function PipeTable({segs,setSegs,pipeType,pipeSizes,velLimit,velLimit2,label,velLabel,flowOpts}){
+  const HDRS=["NO","유량\n(ℓ/min)","관경\n(A)","직관\n(m)","90°\nElbow","45°\nElbow","분류\nTee","직류\nTee","Gate\nV/V","Ball\nV/V","Angle\nV/V","Check\nV/V","상당직관\n(m)","마찰계수\n(m/100m)","손실수두\n(m)","유속\n(m/s)","×"];
+  const upd=(i,k,v)=>setSegs(p=>{const n=[...p];n[i]={...n[i],[k]:v};return n;});
+  const add=()=>setSegs(p=>[...p,{flow:flowOpts?flowOpts[0]:130,dia:100,len:10,e90:0,e45:0,teeB:0,teeS:0,gate:0,ball:0,angle:0,check:0}]);
+  const del=i=>setSegs(p=>p.filter((_,j)=>j!==i));
+  return <Box title={label} color="#334155">
+    <div style={{overflowX:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+        <colgroup>
+          <col style={{width:"3%"}}/><col style={{width:"7%"}}/><col style={{width:"6%"}}/><col style={{width:"6%"}}/>
+          <col style={{width:"5%"}}/><col style={{width:"5%"}}/><col style={{width:"5%"}}/><col style={{width:"5%"}}/>
+          <col style={{width:"5%"}}/><col style={{width:"5%"}}/><col style={{width:"5%"}}/><col style={{width:"5%"}}/>
+          <col style={{width:"7%"}}/><col style={{width:"8%"}}/><col style={{width:"7%"}}/><col style={{width:"6%"}}/><col style={{width:"2%"}}/>
+        </colgroup>
+        <thead>
+          <tr style={{background:"#1e3a5f",color:"white"}}>
+            {HDRS.map((h,i)=><th key={i} style={{border:BD,padding:"5px 2px",textAlign:"center",whiteSpace:"pre-line",lineHeight:1.3,fontSize:9,fontWeight:700}}>{h}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {segs.map((s,i)=>{
+            const eq=FITTING_EQ[s.dia]||FITTING_EQ[100];
+            const fl=s.e90*eq[0]+s.e45*eq[1]+s.teeB*eq[2]+s.teeS*eq[3]+s.gate*eq[4]+s.ball*eq[5]+s.angle*eq[6]+s.check*eq[7];
+            const tl=(s.len||0)+fl;
+            const fric=calcFriction(s.flow,s.dia,pipeType);
+            const hl=fric*tl/100;
+            const vel=calcVelocity(s.flow,s.dia,pipeType);
+            const lim=velLimit||4;
+            const lim2=velLimit2||10;
+            const vW=vel>lim2?"⚠":vel>lim?"⚡":"";
+            const num=(k,v)=><input type="number" value={v} onChange={e=>upd(i,k,+(e.target.value))}
+              style={{width:"100%",padding:"2px",textAlign:"center",fontSize:10,border:"1px solid #e5e7eb",borderRadius:4,fontFamily:"'Noto Sans Mono',monospace",background:"white"}}/>;
+            return <tr key={i} style={{background:i%2?"#f9fafb":"white"}}>
+              <td style={{border:BD,padding:"4px 2px",textAlign:"center",fontSize:10,fontWeight:700}}>{i+1}</td>
+              <td style={{border:BD,padding:"2px"}}>
+                {flowOpts
+                  ?<select value={s.flow} onChange={e=>upd(i,"flow",+e.target.value)}
+                      style={{width:"100%",padding:"2px",fontSize:10,border:"1px solid #e5e7eb",borderRadius:4,fontFamily:"'Noto Sans Mono',monospace",background:"white",textAlign:"center"}}>
+                      {flowOpts.map(f=><option key={f} value={f}>{f}</option>)}
+                    </select>
+                  :num("flow",s.flow)
+                }
+              </td>
+              <td style={{border:BD,padding:"2px"}}>
+                <select value={s.dia} onChange={e=>upd(i,"dia",+e.target.value)}
+                  style={{width:"100%",padding:"2px",fontSize:10,border:"none",background:"transparent",fontFamily:"'Noto Sans KR',sans-serif",outline:"none"}}>
+                  {pipeSizes.map(d=><option key={d} value={d}>{d}</option>)}
+                </select>
+              </td>
+              <td style={{border:BD,padding:"2px"}}>{num("len",s.len)}</td>
+              {["e90","e45","teeB","teeS","gate","ball","angle","check"].map(k=>(
+                <td key={k} style={{border:BD,padding:"2px"}}>{num(k,s[k])}</td>
+              ))}
+              <td style={{border:BD,padding:"4px 2px",textAlign:"center",fontSize:10,fontFamily:"'Noto Sans Mono',monospace"}}>{f3(fl)}</td>
+              <td style={{border:BD,padding:"4px 2px",textAlign:"center",fontSize:10,fontFamily:"'Noto Sans Mono',monospace",color:"#c2410c",fontWeight:700}}>{f3(fric)}</td>
+              <td style={{border:BD,padding:"4px 2px",textAlign:"center",fontSize:10,fontFamily:"'Noto Sans Mono',monospace",color:"#1d4ed8",fontWeight:700}}>{f3(hl)}</td>
+              <td style={{border:BD,padding:"4px 2px",textAlign:"center",fontSize:10,fontFamily:"'Noto Sans Mono',monospace",color:vW?"#dc2626":"#374151",fontWeight:vW?700:400}}>{f2(vel)}{vW?" "+vW:""}</td>
+              <td style={{border:BD,padding:"2px",textAlign:"center"}}><button onClick={()=>del(i)} style={{background:"#fee2e2",border:"none",borderRadius:4,cursor:"pointer",color:"#dc2626",fontSize:11,fontWeight:700,padding:"2px 6px"}}>×</button></td>
+            </tr>;
+          })}
+          <tr style={{background:"#f1f5f9"}}>
+            <td colSpan={14} style={{border:BD,padding:"5px 10px",fontWeight:700,fontSize:11,color:"#374151"}}>배관 마찰손실 합계 (F)</td>
+            <td style={{border:BD,padding:"5px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",color:"#1d4ed8",fontWeight:900,fontSize:13}}>
+              {f3(segs.reduce((s2,s)=>{const eq=FITTING_EQ[s.dia]||FITTING_EQ[100];const fl=s.e90*eq[0]+s.e45*eq[1]+s.teeB*eq[2]+s.teeS*eq[3]+s.gate*eq[4]+s.ball*eq[5]+s.angle*eq[6]+s.check*eq[7];const tl=(s.len||0)+fl;return s2+calcFriction(s.flow,s.dia,pipeType)*tl/100;},0))}
+            </td>
+            <td colSpan={2} style={{border:BD}}></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style={{marginTop:8,textAlign:"right"}}>
+      <button onClick={add} style={{padding:"6px 14px",background:"#334155",color:"white",border:"none",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:12}}>+ 구간 추가</button>
+    </div>
+    <div style={{marginTop:8,padding:"7px 12px",background:"#fef2f2",border:"1.5px solid #fca5a5",borderRadius:8,fontSize:11,color:"#991b1b",fontFamily:"'Noto Sans KR',sans-serif",fontWeight:600}}>
+      {velLabel||`⚠️ 유속 제한: ≤ ${velLimit||4} m/s — 초과 시 ⚡ 표시`}
+    </div>
+    <div style={{marginTop:8,padding:"10px 14px",background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:8}}>
+      <div style={{fontSize:11,fontWeight:700,color:"#374151",marginBottom:6}}>【 관부속 상당직관 적용 참고사항 】</div>
+      <ol style={{margin:0,paddingLeft:18,fontSize:10,color:"#6b7280",lineHeight:2}}>
+        <li>Elbow, Tee는 <b>나사접합</b>을 기준으로 한 것임.&nbsp;&nbsp;(용접의 경우 손실을 더 적게 적용)</li>
+        <li>Reducer는 <b>45°Elbow</b>와 같다.&nbsp;&nbsp;(다만, 관경이 작은 쪽에 따른다.)</li>
+        <li>Coupling은 <b>직류 Tee</b>와 같다.</li>
+        <li>Union, Flange, Socket은 손실수두가 미소하여 <b>생략</b>한다.</li>
+        <li>Auto Valve(포소화전 설비), Glove Valve는 <b>Ball Valve</b>와 같다.</li>
+        <li>Alarm Valve, Foot Valve 및 Strainer는 <b>Angle Valve</b>와 같다.</li>
+      </ol>
+    </div>
+  </Box>;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   메인 앱
+══════════════════════════════════════════════════════════════ */
+function App(){
+  const [tab,setTab]=useState(0);
+  const [proj,setProj]=useState({name:"만민 건축사 신사옥 신축공사 현장",designer:"김만민",date:new Date().toISOString().slice(0,10)});
+
+  /* 옥내소화전 상태 */
+  const [hSys,setHSys]=useState({hydrants:2,actualHead:78,hoseLen:30,hoseType:2,pipeType:"SCH10"});
+  const ssH=(k,v)=>setHSys(p=>({...p,[k]:v}));
+  const [hSegs,setHSegs]=useState([
+    {flow:260,dia:100,len:30,e90:3,e45:2,teeB:1,teeS:12,gate:2,ball:0,angle:2,check:1},
+    {flow:130,dia:80, len:20,e90:0,e45:0,teeB:1,teeS:0, gate:0,ball:0,angle:0,check:0},
+    {flow:130,dia:50, len:15,e90:0,e45:0,teeB:1,teeS:0, gate:0,ball:0,angle:1,check:0},
+  ]);
+
+  /* 옥외소화전 상태 */
+  const [oSys,setOSys]=useState({hydrants:2,actualHead:10,hoseLen:15,hoseType:2,pipeType:"SCH10"});
+  const ssO=(k,v)=>setOSys(p=>({...p,[k]:v}));
+  const [oSegs,setOSegs]=useState([
+    {flow:700,dia:100,len:30,e90:2,e45:1,teeB:1,teeS:6,gate:2,ball:0,angle:1,check:1},
+    {flow:350,dia:80, len:20,e90:0,e45:0,teeB:1,teeS:0, gate:0,ball:0,angle:0,check:0},
+    {flow:350,dia:65, len:15,e90:0,e45:0,teeB:1,teeS:0, gate:0,ball:0,angle:1,check:0},
+  ]);
+
+  /* 겸용 펌프 파라미터 */
+  const [cPump,setCPump]=useState({pumpDia:125,pumpEff:65,transType:1});
+  const ssCp=(k,v)=>setCPump(p=>({...p,[k]:v}));
+
+  const[installPrompt,setInstallPrompt]=useState(null);
+  const[showInstallBanner,setShowInstallBanner]=useState(false);
+  useEffect(()=>{const h=(e)=>{e.preventDefault();setInstallPrompt(e);if(!window.matchMedia('(display-mode:standalone)').matches)setShowInstallBanner(true);};window.addEventListener('beforeinstallprompt',h);return()=>window.removeEventListener('beforeinstallprompt',h);},[]);
+  const handleInstall=async()=>{if(!installPrompt)return;installPrompt.prompt();const r=await installPrompt.userChoice;if(r.outcome==='accepted')console.log('[PWA] 설치 완료');setInstallPrompt(null);setShowInstallBanner(false);};
+
+  /* ── 옥내소화전 계산 ── */
+  const H=useMemo(()=>{
+    const A=Math.min(H_MAX_N,Math.max(1,hSys.hydrants|0));
+    const Clpm=A*H_FLOW_PER;
+    const D=Clpm*H_WATER_T/1000;
+    let F=0;
+    hSegs.forEach(s=>{
+      const eq=FITTING_EQ[s.dia]||FITTING_EQ[100];
+      const fl=s.e90*eq[0]+s.e45*eq[1]+s.teeB*eq[2]+s.teeS*eq[3]+s.gate*eq[4]+s.ball*eq[5]+s.angle*eq[6]+s.check*eq[7];
+      const tl=(s.len||0)+fl;
+      F+=calcFriction(s.flow,s.dia,hSys.pipeType)*tl/100;
+    });
+    const hose=H_HOSE_TYPES[hSys.hoseType]||H_HOSE_TYPES[2];
+    const G=hose.fixed!=null?hose.fixed:hose.rate*hSys.hoseLen/100;
+    const E=+hSys.actualHead;
+    const sub=E+F+G+H_NOZZLE;
+    const I=sub*0.1;
+    const J=Math.ceil(sub+I);
+    return {A,Clpm,D,E,F,G,I,J,hose};
+  },[hSys,hSegs]);
+
+  /* ── 옥외소화전 계산 ── */
+  const O=useMemo(()=>{
+    const A=Math.min(O_MAX_N,Math.max(1,oSys.hydrants|0));
+    const Clpm=A*O_FLOW_PER;
+    const D=A*O_WATER_PER;
+    let F=0;
+    oSegs.forEach(s=>{
+      const eq=FITTING_EQ[s.dia]||FITTING_EQ[100];
+      const fl=s.e90*eq[0]+s.e45*eq[1]+s.teeB*eq[2]+s.teeS*eq[3]+s.gate*eq[4]+s.ball*eq[5]+s.angle*eq[6]+s.check*eq[7];
+      const tl=(s.len||0)+fl;
+      F+=calcFriction(s.flow,s.dia,oSys.pipeType)*tl/100;
+    });
+    const hose=O_HOSE_TYPES[oSys.hoseType]||O_HOSE_TYPES[2];
+    const G=hose.rate*oSys.hoseLen/100;
+    const E=+oSys.actualHead;
+    const sub=E+F+G+O_NOZZLE;
+    const I=sub*0.1;
+    const J=Math.ceil(sub+I);
+    return {A,Clpm,D,E,F,G,I,J,hose};
+  },[oSys,oSegs]);
+
+  /* ── 겸용 펌프 계산 ── */
+  const CP=useMemo(()=>{
+    const Clpm=H.Clpm+O.Clpm;      // 유량 합산
+    const J=Math.max(H.J,O.J);     // 전양정: 더 높은 쪽 (MAX)
+    const D=H.D+O.D;               // 수원 합산
+    const M=Clpm/1000;
+    const N=cPump.pumpEff/100;
+    const K=(TRANS_TYPE[cPump.transType]&&TRANS_TYPE[cPump.transType].k)||1.1;
+    const Pkw=0.163*M*J*K/N;
+    const Php=nextHP(Pkw);
+    const hHead=H.J>=O.J?"옥내소화전":"옥외소화전";
+    return {Clpm,J,D,M,N,K,Pkw,Php,hHead};
+  },[H,O,cPump]);
+
+  const TABS=["① 옥내소화전 입력","② 옥외소화전 입력","③ 겸용펌프 결과","④ 계산서 출력"];
+  const TAB_COLORS=["#b91c1c","#15803d","#1d4ed8","#334155"];
+
+  const SEC={background:"white",borderRadius:12,boxShadow:"0 1px 4px rgba(0,0,0,0.08)",marginBottom:16,overflow:"hidden"};
+  const STITLE=(c)=>({background:c,color:"white",padding:"8px 16px",fontSize:12,fontWeight:700,letterSpacing:"0.04em"});
+
+  return <>
+  <div style={{minHeight:"100vh",background:"#f1f5f9",fontFamily:"'Noto Sans KR',sans-serif"}}>
+
+    {/* ── 헤더 ── */}
+    <div className="no-print" style={{background:"linear-gradient(135deg,#0f172a,#1e3a5f,#1d4ed8)",color:"white",padding:"20px 0 0"}}>
+      <div style={{maxWidth:1320,margin:"0 auto",padding:"0 24px"}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:600,opacity:0.65,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>
+              Combined Fire Pump System
+            </div>
+            <h1 style={{fontSize:26,fontWeight:900,letterSpacing:"0.04em",lineHeight:1.2}}>
+              겸용 펌프 용량 계산서
+            </h1>
+            <div style={{fontSize:12,marginTop:8,opacity:0.85,letterSpacing:"0.02em"}}>
+              옥내소화전(NFPC/NFTC 102) + 옥외소화전(NFPC 109) 겸용 &nbsp;
+              <span style={{fontFamily:"'Orbitron',sans-serif",fontWeight:900,fontSize:12,color:"#93c5fd",letterSpacing:"0.08em",textShadow:"0 0 8px rgba(147,197,253,0.6)"}}>
+                MANMIN · Ver-2.0
+              </span>
+            </div>
+          </div>
+          <div style={{textAlign:"right",fontSize:11,opacity:0.8}}>
+            <div style={{fontWeight:700,fontSize:13}}>NFTC 102 + NFPC 109</div>
+            <div>옥내소화전 + 옥외소화전 겸용</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:4,paddingTop:4}}>
+          {TABS.map((t,i)=>(
+            <button key={i} onClick={()=>setTab(i)}
+              style={{padding:"11px 24px",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,
+                fontFamily:"'Noto Sans KR',sans-serif",letterSpacing:"0.02em",
+                background:tab===i?TAB_COLORS[i]:"transparent",
+                color:tab===i?"white":"rgba(255,255,255,0.75)",
+                borderBottom:tab===i?`3px solid ${TAB_COLORS[i]}`:"3px solid transparent",
+                transition:"all 0.15s"}}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    {/* ── 요약 바 ── */}
+    <div className="no-print" style={{background:"#0f172a",padding:"10px 0"}}>
+      <div style={{maxWidth:1320,margin:"0 auto",padding:"0 24px",display:"flex",flexWrap:"wrap",gap:20}}>
+        {[
+          ["옥내소화전 유량",`${H.Clpm} ℓ/min`],
+          ["옥외소화전 유량",`${O.Clpm} ℓ/min`],
+          ["겸용 합산 유량",`${CP.Clpm} ℓ/min`],
+          ["옥내소화전 전양정",`${H.J} m`],
+          ["옥외소화전 전양정",`${O.J} m`],
+          ["겸용 채택 전양정",`${CP.J} m (${CP.hHead})`],
+          ["겸용 선정 출력",`${CP.Php} HP`],
+        ].map(([l,v])=>(
+          <span key={l} style={{fontSize:12,color:"#94a3b8"}}>
+            {l}: <b style={{color:"#93c5fd",fontFamily:"'Noto Sans Mono',monospace"}}>{v}</b>
+          </span>
+        ))}
+      </div>
+    </div>
+
+    <div style={{maxWidth:1320,margin:"0 auto",padding:"0 24px"}}>
+      <div style={{paddingTop:20,paddingBottom:40}}>
+
+        {/* ════ TAB 0: 옥내소화전 입력 ════ */}
+        {tab===0&&<div className="no-print"><>
+          <Box title="▣ 프로젝트 정보" color="#7f1d1d">
+            <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:14}}>
+              <div><LabelEl>공사명</LabelEl><input value={proj.name} onChange={e=>setProj(p=>({...p,name:e.target.value}))} style={{width:"100%",padding:"8px 12px",borderRadius:8,border:BD,fontSize:13,outline:"none"}}/></div>
+              <div><LabelEl>설계자</LabelEl><input value={proj.designer} onChange={e=>setProj(p=>({...p,designer:e.target.value}))} style={{width:"100%",padding:"8px 12px",borderRadius:8,border:BD,fontSize:13,outline:"none"}}/></div>
+              <div><LabelEl>작성일</LabelEl><input type="date" value={proj.date} onChange={e=>setProj(p=>({...p,date:e.target.value}))} style={{width:"100%",padding:"8px 12px",borderRadius:8,border:BD,fontSize:13,outline:"none"}}/></div>
+            </div>
+          </Box>
+          <Box title="Ⅰ. 옥내소화전 시스템 파라미터 (NFTC 102)" color="#b91c1c">
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
+              <div>
+                <LabelEl>A. 최대구역 소화전 수</LabelEl>
+                <InpNum val={hSys.hydrants} min={1} max={5} onChange={v=>ssH("hydrants",v)} unit="개 (최대 5)"/>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>개당 방사량 130 ℓ/min 고정</div>
+              </div>
+              <div><LabelEl>F. 실양정 (h₁)</LabelEl><InpNum val={hSys.actualHead} onChange={v=>ssH("actualHead",v)} unit="m"/></div>
+              <div><LabelEl>G. 호스 길이</LabelEl>
+                <Sel val={hSys.hoseLen} onChange={v=>ssH("hoseLen",parseInt(v))}>
+                  <option value={15}>15 m</option><option value={30}>30 m</option>
+                </Sel>
+              </div>
+              <div><LabelEl>G-1. 호스 타입</LabelEl>
+                <Sel val={hSys.hoseType} onChange={v=>ssH("hoseType",+v)}>
+                  {Object.entries(H_HOSE_TYPES).map(([k,v])=>(
+                    <option key={k} value={k}>{v.label} ({v.fixed!=null?`고정 ${v.fixed}m`:`${v.rate} m/100m`})</option>
+                  ))}
+                </Sel>
+              </div>
+              <div><LabelEl>배관 종류 (C값)</LabelEl>
+                <Sel val={hSys.pipeType} onChange={v=>ssH("pipeType",v)}>
+                  {Object.entries(PIPE_CONFIG).map(([k,v])=><option key={k} value={k}>{v.label} (C={v.C})</option>)}
+                </Sel>
+              </div>
+            </div>
+          </Box>
+          <PipeTable segs={hSegs} setSegs={setHSegs} pipeType={hSys.pipeType} pipeSizes={H_PIPE_SIZES}
+            velLimit={4} velLimit2={10} flowOpts={[130,260,390,520,650]}
+            velLabel="⚠️ 유속 제한 (NFTC 102 §2.3.5): 펌프 토출 측 주배관 ≤ 4 m/s — 초과 시 ⚡ 표시"
+            label="Ⅰ-2. 옥내소화전 배관 구간 데이터 입력"/>
+          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-2.0</div>
+        </></div>}
+
+        {/* ════ TAB 1: 옥외소화전 입력 ════ */}
+        {tab===1&&<div className="no-print"><>
+          <Box title="Ⅱ. 옥외소화전 시스템 파라미터 (NFPC 109)" color="#15803d">
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
+              <div>
+                <LabelEl>A. 동시사용 소화전 수</LabelEl>
+                <InpNum val={oSys.hydrants} min={1} max={2} onChange={v=>ssO("hydrants",v)} unit="개 (최대 2)"/>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>개당 방사량 350 ℓ/min 고정 (NFPC 109 제5조①③)</div>
+              </div>
+              <div><LabelEl>F. 실양정 (h₁)</LabelEl><InpNum val={oSys.actualHead} onChange={v=>ssO("actualHead",v)} unit="m"/></div>
+              <div><LabelEl>G. 호스 길이 (본수 선택)</LabelEl>
+                <Sel val={oSys.hoseLen} onChange={v=>ssO("hoseLen",parseInt(v))}>
+                  <option value={15}>15 m (1본)</option>
+                  <option value={30}>30 m (2본)</option>
+                  <option value={45}>45 m (3본)</option>
+                </Sel>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>1본 = 15 m | 65mm 호스 (NFPC 109 제6조②)</div>
+              </div>
+              <div><LabelEl>G-1. 호스 타입 (65mm)</LabelEl>
+                <Sel val={oSys.hoseType} onChange={v=>ssO("hoseType",+v)}>
+                  {Object.entries(O_HOSE_TYPES).map(([k,v])=>(
+                    <option key={k} value={k}>{v.label} ({v.rate} m/100m)</option>
+                  ))}
+                </Sel>
+              </div>
+              <div><LabelEl>배관 종류 (C값)</LabelEl>
+                <Sel val={oSys.pipeType} onChange={v=>ssO("pipeType",v)}>
+                  {Object.entries(PIPE_CONFIG).map(([k,v])=><option key={k} value={k}>{v.label} (C={v.C})</option>)}
+                </Sel>
+              </div>
+            </div>
+          </Box>
+          <PipeTable segs={oSegs} setSegs={setOSegs} pipeType={oSys.pipeType} pipeSizes={O_PIPE_SIZES}
+            velLimit={4} velLimit2={10} flowOpts={[350,700]}
+            velLabel="⚠️ 유속 제한: 펌프 토출 측 주배관 ≤ 4 m/s — 초과 시 ⚡ 표시"
+            label="Ⅱ-2. 옥외소화전 배관 구간 데이터 입력"/>
+          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-2.0</div>
+        </></div>}
+
+        {/* ════ TAB 2: 겸용 펌프 결과 ════ */}
+        {tab===2&&<div className="no-print"><>
+          <Box title="▣ 겸용 펌프 파라미터" color="#1d4ed8">
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
+              <div>
+                <LabelEl>펌프 토출구경</LabelEl>
+                <Sel val={cPump.pumpDia} onChange={v=>ssCp("pumpDia",parseInt(v))}>
+                  {PUMP_SIZES.map(d=><option key={d} value={d}>{d} A</option>)}
+                </Sel>
+              </div>
+              <div>
+                <LabelEl>펌프 효율 (η)</LabelEl>
+                <EffInp val={cPump.pumpEff} onChange={v=>ssCp("pumpEff",v)}/>
+                <div style={{fontSize:10,color:"#6b7280",marginTop:4}}>참고: 40A=40% / 50A=45% / 65A=55% / 80A=55% / 100A=60% / 125A=65% / 150A=70%</div>
+              </div>
+              <div>
+                <LabelEl>동력 전달방식</LabelEl>
+                <Sel val={cPump.transType} onChange={v=>ssCp("transType",+v)}>
+                  {Object.entries(TRANS_TYPE).map(([k,v])=><option key={k} value={k}>{v.label} (K={v.k})</option>)}
+                </Sel>
+              </div>
+            </div>
+          </Box>
+
+          {/* 각 설비 계산 결과 비교 */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
+            {/* 옥내소화전 결과 */}
+            <div style={{background:"white",borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+              <div style={{background:"#b91c1c",color:"white",padding:"10px 16px",fontWeight:700,fontSize:13}}>옥내소화전 단독 계산 결과</div>
+              <div style={{padding:14,display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <Card label="소화전 수 (A)" value={H.A} unit="개" bc="red"/>
+                <Card label="펌프 토출량" value={H.Clpm} unit="ℓ/min" formula={`${H.A}×130`} bc="orange"/>
+                <Card label="실양정 (E)" value={ff(H.E)} unit="m" bc="blue"/>
+                <Card label="배관손실 (F)" value={f3(H.F)} unit="m" bc="blue"/>
+                <Card label="호스손실 (G)" value={f3(H.G)} unit="m" bc="blue"/>
+                <Card label="안전율 (I)" value={f3(H.I)} unit="m" formula="×10%"/>
+                <Card label="전양정 (J)" value={H.J} unit="m" bc="red"/>
+                <Card label="수원 용량" value={f3(H.D)} unit="m³" bc="orange"/>
+              </div>
+            </div>
+            {/* 옥외소화전 결과 */}
+            <div style={{background:"white",borderRadius:12,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.08)"}}>
+              <div style={{background:"#15803d",color:"white",padding:"10px 16px",fontWeight:700,fontSize:13}}>옥외소화전 단독 계산 결과</div>
+              <div style={{padding:14,display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <Card label="소화전 수 (A)" value={O.A} unit="개" bc="green"/>
+                <Card label="펌프 토출량" value={O.Clpm} unit="ℓ/min" formula={`${O.A}×350`} bc="orange"/>
+                <Card label="실양정 (E)" value={ff(O.E)} unit="m" bc="blue"/>
+                <Card label="배관손실 (F)" value={f3(O.F)} unit="m" bc="blue"/>
+                <Card label="호스손실 (G)" value={f3(O.G)} unit="m" formula={`${oSys.hoseLen}m (${oSys.hoseLen/15}본)`}/>
+                <Card label="안전율 (I)" value={f3(O.I)} unit="m" formula="×10%"/>
+                <Card label="전양정 (J)" value={O.J} unit="m" bc="green"/>
+                <Card label="수원 용량" value={f3(O.D)} unit="m³" formula={`${O.A}×7 m³`} bc="teal"/>
+              </div>
+            </div>
+          </div>
+
+          {/* 겸용 펌프 최종 결과 */}
+          <div style={{background:"linear-gradient(135deg,#0f172a,#1e3a5f)",borderRadius:14,padding:22}}>
+            <div style={{color:"#93c5fd",fontSize:13,fontWeight:700,marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
+              <span style={{background:"#1d4ed8",color:"white",borderRadius:"50%",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900}}>겸</span>
+              겸용 펌프 선정 결과 — NFTC 102 + NFPC 109
+            </div>
+            <div style={{background:"rgba(255,255,255,0.06)",borderRadius:10,padding:"12px 16px",marginBottom:14,fontSize:11,color:"#cbd5e1",lineHeight:2}}>
+              <b style={{color:"#93c5fd"}}>【 겸용 설계 기준 】</b><br/>
+              ◆ 토출량 = 옥내소화전({H.Clpm} ℓ/min) + 옥외소화전({O.Clpm} ℓ/min) = <b style={{color:"#fbbf24",fontSize:13}}>{CP.Clpm} ℓ/min</b><br/>
+              ◆ 전양정 = max(옥내소화전 {H.J}m, 옥외소화전 {O.J}m) = <b style={{color:"#fbbf24",fontSize:13}}>{CP.J} m</b> ({CP.hHead} 기준 채택)<br/>
+              ◆ 수원 = 옥내소화전({f3(H.D)} m³) + 옥외소화전({f3(O.D)} m³) = <b style={{color:"#fbbf24",fontSize:13}}>{f3(CP.D)} m³</b><br/>
+              ◆ 축동력 = 0.163 × {f3(CP.M)} m³/min × {CP.J} m × {CP.K} / {CP.N} = <b style={{color:"#fbbf24",fontSize:13}}>{f3(CP.Pkw)} kW</b>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+              {[["합산 토출량 (Q)",`${CP.Clpm} ℓ/min`],["채택 전양정 (H)",`${CP.J} m`],
+                ["전동기 출력",`${CP.Php} HP`],["펌프 구경",`${cPump.pumpDia} A`],
+                ["합산 수원 (D)",`${f3(CP.D)} m³`],["펌프 효율 (η)",`${cPump.pumpEff} %`],
+                ["전달방식",(TRANS_TYPE[cPump.transType]&&TRANS_TYPE[cPump.transType].label)],["전달계수 (K)",`${CP.K}`]
+              ].map(([l,v])=>(
+                <div key={l} style={{background:"rgba(255,255,255,0.06)",borderRadius:8,padding:"10px 12px"}}>
+                  <div style={{color:"#64748b",fontSize:11}}>{l}</div>
+                  <div style={{color:"white",fontSize:15,fontWeight:700,fontFamily:"'Noto Sans Mono',monospace"}}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{borderTop:"1px solid rgba(255,255,255,0.15)",paddingTop:14,textAlign:"center",fontSize:18,fontWeight:900,color:"#93c5fd",letterSpacing:"0.05em",fontFamily:"'Noto Sans Mono',monospace"}}>
+              Q = {f3(CP.M)} ㎥/min &nbsp;×&nbsp; H = {CP.J} m &nbsp;×&nbsp; P = {CP.Php} HP
+            </div>
+          </div>
+          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",marginTop:8,paddingRight:4}}>MANMIN · Ver-2.0</div>
+        </></div>}
+
+        {/* ════ TAB 3: 계산서 출력 ════ */}
+        {tab===3&&<>
+          <div className="no-print" style={{display:"flex",justifyContent:"flex-end",marginBottom:14}}>
+            <button onClick={()=>window.print()} style={{padding:"10px 24px",background:"#1e3a5f",color:"white",border:"none",borderRadius:10,cursor:"pointer",fontWeight:700,fontSize:13,display:"flex",alignItems:"center",gap:8}}>
+              🖨️ 인쇄 / PDF 저장
+            </button>
+          </div>
+
+          <div id="report-zone" style={{background:"white",borderRadius:14,boxShadow:"0 1px 3px rgba(0,0,0,0.1)",border:BD,padding:"28px 48px"}}>
+
+            {/* 제목 */}
+            <div style={{textAlign:"center",marginBottom:14,borderBottom:"3px double #334155",paddingBottom:10}}>
+              <div style={{fontSize:22,fontWeight:900,letterSpacing:"0.06em"}}>겸용 펌프 용량 계산서</div>
+              <div style={{fontSize:12,color:"#64748b",marginTop:6}}>옥내소화전(NFPC/NFTC 102) + 옥외소화전(NFPC 109) 겸용 펌프 설계</div>
+              <table style={{margin:"12px auto 0",borderCollapse:"collapse"}}>
+                <tbody><tr>
+                  {[["공사명",proj.name||"(미입력)"],["설계자",proj.designer||"(미입력)"],["작성일",proj.date]].map(([k,v])=>(
+                    <td key={k} style={{border:BD,padding:"5px 14px",fontSize:12,whiteSpace:"nowrap"}}><b>{k}:</b> {v}</td>
+                  ))}
+                </tr></tbody>
+              </table>
+            </div>
+
+            {/* Ⅰ. 옥내소화전 */}
+            <div className="print-section" style={{border:"2px solid #b91c1c",borderRadius:8,overflow:"hidden",marginBottom:14}}>
+              <div style={{background:"#b91c1c",color:"white",padding:"8px 16px",fontSize:13,fontWeight:700}}>Ⅰ. 옥내소화전설비 계산 (NFTC 102)</div>
+              <div style={{padding:"14px 16px"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <thead><tr style={{background:"#fef2f2"}}>
+                    {["기호","항목","수치","단위","산출근거"].map(h=><th key={h} style={{border:BD,padding:"6px 10px",textAlign:"center",fontWeight:700,color:"#b91c1c"}}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {[
+                      ["A","최대구역 소화전 수",H.A,"개",`NFTC 102 제5조 — 최대 5개 이하 (${H.A}개 적용)`],
+                      ["B","소화전 개당 방사량",H_FLOW_PER,"ℓ/min","NFTC 102 제6조 (130 ℓ/min 고정)"],
+                      ["C","펌프 토출량",H.Clpm,"ℓ/min",`C = A×B = ${H.A}×${H_FLOW_PER}`],
+                      ["D","수원 용량",`${f3(H.D)}`,"m³",`D = ${H.A}×130×20÷1000 = ${f3(H.D)} m³`],
+                      ["E","실양정 (h₁)",ff(H.E),"m","설계 도면 기준"],
+                      ["F","배관 마찰손실 (h₂)",f3(H.F),"m","Hazen-Williams 공식"],
+                      ["G","호스 마찰손실 (h₃)",f3(H.G),"m",`${H.hose.label}`],
+                      ["H₄","노즐 환산수두",H_NOZZLE,"m","방수압 0.17 MPa 환산"],
+                      ["I","안전율",f3(H.I),"m","(E+F+G+H₄)×10%"],
+                      ["J","전양정",H.J,"m","올림 적용"],
+                    ].map(([no,lbl,val,unit,bas])=>(
+                      <tr key={no} style={{background:"white"}}>
+                        <td style={{border:BD,padding:"5px 10px",textAlign:"center",fontWeight:700,fontFamily:"'Noto Sans Mono',monospace",color:"#b91c1c",width:36}}>{no}</td>
+                        <td style={{border:BD,padding:"5px 12px",fontSize:11}}>{lbl}</td>
+                        <td style={{border:BD,padding:"5px 12px",textAlign:"right",fontFamily:"'Noto Sans Mono',monospace",fontWeight:700}}>{val}</td>
+                        <td style={{border:BD,padding:"5px 8px",textAlign:"center",fontSize:11,color:"#6b7280"}}>{unit}</td>
+                        <td style={{border:BD,padding:"5px 12px",fontSize:10,color:"#6b7280"}}>{bas}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Ⅱ. 옥외소화전 */}
+            <div className="print-section" style={{border:"2px solid #15803d",borderRadius:8,overflow:"hidden",marginBottom:14}}>
+              <div style={{background:"#15803d",color:"white",padding:"8px 16px",fontSize:13,fontWeight:700}}>Ⅱ. 옥외소화전설비 계산 (NFPC 109)</div>
+              <div style={{padding:"14px 16px"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <thead><tr style={{background:"#f0fdf4"}}>
+                    {["기호","항목","수치","단위","산출근거"].map(h=><th key={h} style={{border:BD,padding:"6px 10px",textAlign:"center",fontWeight:700,color:"#15803d"}}>{h}</th>)}
+                  </tr></thead>
+                  <tbody>
+                    {[
+                      ["A","동시사용 소화전 수",O.A,"개",`NFPC 109 제4조① — 2개 이상 설치 시 2개 기준 (최대 2개)`],
+                      ["B","소화전 개당 방사량",O_FLOW_PER,"ℓ/min","NFPC 109 제5조①③ (350 ℓ/min 고정)"],
+                      ["C","펌프 토출량",O.Clpm,"ℓ/min",`C = A×B = ${O.A}×${O_FLOW_PER}`],
+                      ["D","수원 용량",`${f3(O.D)}`,"m³",`D = A×7 m³ = ${O.A}×7 = ${f3(O.D)} m³ (NFPC 109 제4조①)`],
+                      ["E","실양정 (h₁)",ff(O.E),"m","설계 도면 기준"],
+                      ["F","배관 마찰손실 (h₂)",f3(O.F),"m","Hazen-Williams 공식"],
+                      ["G","호스 마찰손실 (h₃)",f3(O.G),"m",`${O.hose.label} — ${O.hose.rate} m/100m × ${oSys.hoseLen} m`],
+                      ["H₄","노즐 환산수두",O_NOZZLE,"m","방수압 0.25 MPa 환산 (NFPC 109 제5조①③)"],
+                      ["I","안전율",f3(O.I),"m","(E+F+G+H₄)×10%"],
+                      ["J","전양정",O.J,"m","올림 적용"],
+                    ].map(([no,lbl,val,unit,bas])=>(
+                      <tr key={no} style={{background:"white"}}>
+                        <td style={{border:BD,padding:"5px 10px",textAlign:"center",fontWeight:700,fontFamily:"'Noto Sans Mono',monospace",color:"#15803d",width:36}}>{no}</td>
+                        <td style={{border:BD,padding:"5px 12px",fontSize:11}}>{lbl}</td>
+                        <td style={{border:BD,padding:"5px 12px",textAlign:"right",fontFamily:"'Noto Sans Mono',monospace",fontWeight:700}}>{val}</td>
+                        <td style={{border:BD,padding:"5px 8px",textAlign:"center",fontSize:11,color:"#6b7280"}}>{unit}</td>
+                        <td style={{border:BD,padding:"5px 12px",fontSize:10,color:"#6b7280"}}>{bas}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* ※ 배관 마찰손실 명세표 — 옥내소화전 */}
+            <div className="print-section" style={{marginBottom:18}}>
+              <div style={{fontWeight:700,fontSize:11,marginBottom:7,color:"#374151",borderLeft:"3px solid #b91c1c",paddingLeft:10}}>
+                ※ 배관 및 관부속 마찰손실 수두 상세표 【 옥내소화전 】 &nbsp;[ h₂ = {f3(H.F)} m &nbsp;|&nbsp; 배관종류 : {PIPE_CONFIG[hSys.pipeType]?.shortLabel}, C = {PIPE_CONFIG[hSys.pipeType]?.C} ]
+              </div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}>
+                <thead>
+                  <tr style={{background:"#b91c1c",color:"white"}}>
+                    {["NO","유량\n(ℓ/min)","관경\n(A)","직관\n(m)","90°Elbow\n수량(상당직관)","45°Elbow\n수량(상당직관)","분류Tee\n수량(상당직관)","직류Tee\n수량(상당직관)","Gate V/V\n수량(상당직관)","Ball V/V\n수량(상당직관)","Angle V/V\n수량(상당직관)","Check V/V\n수량(상당직관)","상당직관\n합계(m)","마찰계수\n(m/100m)","손실수두\n(m)"].map((h,i)=>(
+                      <th key={i} style={{border:BD,padding:"4px 3px",textAlign:"center",whiteSpace:"pre-line",lineHeight:1.3,fontSize:8,fontWeight:700}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {hSegs.map((s,i)=>{
+                    const eq=FITTING_EQ[s.dia]||FITTING_EQ[100];
+                    const counts=[s.e90,s.e45,s.teeB,s.teeS,s.gate,s.ball,s.angle,s.check];
+                    const fl=counts.reduce((sum,cnt,j)=>sum+cnt*eq[j],0);
+                    const tl=(s.len||0)+fl;
+                    const fric=calcFriction(s.flow,s.dia,hSys.pipeType);
+                    const hl=fric*tl/100;
+                    return <tr key={i} style={{background:i%2===0?"white":"#f9fafb"}}>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10}}>{i+1}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10}}>{s.flow}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10}}>{s.dia}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10}}>{s.len}</td>
+                      {counts.map((cnt,j)=>(
+                        <td key={j} style={{border:BD,padding:"2px 3px",textAlign:"center",fontSize:9,lineHeight:1.3}}>
+                          <div style={{fontFamily:"'Noto Sans Mono',monospace",fontWeight:700,fontSize:10}}>{cnt}</div>
+                          <div style={{fontFamily:"'Noto Sans Mono',monospace",fontSize:8,color:"#6b7280"}}>({f3(eq[j])})</div>
+                        </td>
+                      ))}
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10}}>{f3(fl)}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10,color:"#c2410c",fontWeight:700}}>{f3(fric)}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10,color:"#1d4ed8",fontWeight:700}}>{f3(hl)}</td>
+                    </tr>;
+                  })}
+                  <tr style={{background:"#fef3c7",fontWeight:700}}>
+                    <td colSpan={14} style={{border:BD,padding:"4px 8px",textAlign:"right",color:"#92400e",fontSize:10}}>합계 (h₂)</td>
+                    <td style={{border:BD,padding:"4px 6px",textAlign:"right",fontFamily:"'Noto Sans Mono',monospace",color:"#b45309",fontWeight:900,fontSize:11}}>{f3(H.F)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* ※ 배관 마찰손실 명세표 — 옥외소화전 */}
+            <div className="print-section" style={{marginBottom:18}}>
+              <div style={{fontWeight:700,fontSize:11,marginBottom:7,color:"#374151",borderLeft:"3px solid #15803d",paddingLeft:10}}>
+                ※ 배관 및 관부속 마찰손실 수두 상세표 【 옥외소화전 】 &nbsp;[ h₂ = {f3(O.F)} m &nbsp;|&nbsp; 배관종류 : {PIPE_CONFIG[oSys.pipeType]?.shortLabel}, C = {PIPE_CONFIG[oSys.pipeType]?.C} ]
+              </div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}>
+                <thead>
+                  <tr style={{background:"#15803d",color:"white"}}>
+                    {["NO","유량\n(ℓ/min)","관경\n(A)","직관\n(m)","90°Elbow\n수량(상당직관)","45°Elbow\n수량(상당직관)","분류Tee\n수량(상당직관)","직류Tee\n수량(상당직관)","Gate V/V\n수량(상당직관)","Ball V/V\n수량(상당직관)","Angle V/V\n수량(상당직관)","Check V/V\n수량(상당직관)","상당직관\n합계(m)","마찰계수\n(m/100m)","손실수두\n(m)"].map((h,i)=>(
+                      <th key={i} style={{border:BD,padding:"4px 3px",textAlign:"center",whiteSpace:"pre-line",lineHeight:1.3,fontSize:8,fontWeight:700}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {oSegs.map((s,i)=>{
+                    const eq=FITTING_EQ[s.dia]||FITTING_EQ[100];
+                    const counts=[s.e90,s.e45,s.teeB,s.teeS,s.gate,s.ball,s.angle,s.check];
+                    const fl=counts.reduce((sum,cnt,j)=>sum+cnt*eq[j],0);
+                    const tl=(s.len||0)+fl;
+                    const fric=calcFriction(s.flow,s.dia,oSys.pipeType);
+                    const hl=fric*tl/100;
+                    return <tr key={i} style={{background:i%2===0?"white":"#f9fafb"}}>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10}}>{i+1}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10}}>{s.flow}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10}}>{s.dia}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10}}>{s.len}</td>
+                      {counts.map((cnt,j)=>(
+                        <td key={j} style={{border:BD,padding:"2px 3px",textAlign:"center",fontSize:9,lineHeight:1.3}}>
+                          <div style={{fontFamily:"'Noto Sans Mono',monospace",fontWeight:700,fontSize:10}}>{cnt}</div>
+                          <div style={{fontFamily:"'Noto Sans Mono',monospace",fontSize:8,color:"#6b7280"}}>({f3(eq[j])})</div>
+                        </td>
+                      ))}
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10}}>{f3(fl)}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10,color:"#c2410c",fontWeight:700}}>{f3(fric)}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono',monospace",fontSize:10,color:"#1d4ed8",fontWeight:700}}>{f3(hl)}</td>
+                    </tr>;
+                  })}
+                  <tr style={{background:"#f0fdf4",fontWeight:700}}>
+                    <td colSpan={14} style={{border:BD,padding:"4px 8px",textAlign:"right",color:"#14532d",fontSize:10}}>합계 (h₂)</td>
+                    <td style={{border:BD,padding:"4px 6px",textAlign:"right",fontFamily:"'Noto Sans Mono',monospace",color:"#15803d",fontWeight:900,fontSize:11}}>{f3(O.F)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Ⅲ. 겸용 펌프 선정 결과 */}
+            <div className="page-break print-section" style={{border:"2px solid #1d4ed8",borderRadius:8,overflow:"hidden",marginBottom:20}}>
+              <div style={{background:"#1d4ed8",color:"white",padding:"8px 16px",fontSize:13,fontWeight:700}}>Ⅲ. 겸용 펌프 선정 결과 (NFTC 102 + NFPC 109)</div>
+              <div style={{padding:"14px 16px"}}>
+                <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:11,color:"#1e40af",lineHeight:2}}>
+                  <b>【 겸용 설계 기준 적용 】</b><br/>
+                  ① 토출량 = 옥내소화전({H.Clpm} ℓ/min) + 옥외소화전({O.Clpm} ℓ/min) = <b>{CP.Clpm} ℓ/min = {f3(CP.M)} m³/min</b><br/>
+                  ② 전양정 = max(옥내소화전 {H.J}m, 옥외소화전 {O.J}m) → <b>{CP.J} m</b> ({CP.hHead} 기준 채택)<br/>
+                  ③ 수원 = 옥내소화전({f3(H.D)} m³) + 옥외소화전({f3(O.D)} m³) = <b>{f3(CP.D)} m³</b>
+                </div>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,marginBottom:12,tableLayout:"fixed"}}>
+                  <colgroup>
+                    <col style={{width:"12%"}}/><col style={{width:"8%"}}/><col style={{width:"10%"}}/><col style={{width:"8%"}}/>
+                    <col style={{width:"8%"}}/><col style={{width:"8%"}}/><col style={{width:"16%"}}/><col style={{width:"10%"}}/><col style={{width:"10%"}}/>
+                  </colgroup>
+                  <thead>
+                    <tr style={{background:"#1d4ed8",color:"white"}}>
+                      {["구분","구경(A)","합산유량\n(m³/min)","동력\n(HP)","전양정\n(m)","수원\n(m³)","전달방식","펌프효율\n(η%)","소화전수\n(N)"].map(h=>(
+                        <th key={h} style={{border:BD,padding:"5px 4px",textAlign:"center",fontWeight:700,fontSize:10,whiteSpace:"pre-line",lineHeight:1.3}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{fontWeight:700,background:"white"}}>
+                      {["겸용펌프",`${cPump.pumpDia}A`,f3(CP.M),CP.Php,CP.J,f3(CP.D),(TRANS_TYPE[cPump.transType]&&TRANS_TYPE[cPump.transType].label),`${cPump.pumpEff}%`,`옥내${H.A}/옥외${O.A}`].map((v,i)=>(
+                        <td key={i} style={{border:BD,padding:"6px 4px",textAlign:"center",fontFamily:"'Noto Sans Mono','Noto Sans KR',monospace",fontSize:10,wordBreak:"keep-all"}}>{v}</td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+                <div style={{textAlign:"center",fontSize:16,fontWeight:900,color:"#1d4ed8",letterSpacing:"0.04em",borderTop:"1px solid #bfdbfe",paddingTop:12,fontFamily:"'Noto Sans Mono','Noto Sans KR',monospace"}}>
+                  Q = {f3(CP.M)} ㎥/min &nbsp;×&nbsp; H = {CP.J} m &nbsp;×&nbsp; P = {CP.Php} HP
+                </div>
+              </div>
+            </div>
+
+            {/* 적용 법령 */}
+            <div className="print-section" style={{padding:13,background:"#f8fafc",borderRadius:8,fontSize:11,color:"#6b7280",border:BD,lineHeight:1.9}}>
+              <b style={{color:"#374151"}}>▣ 적용 법령 및 기준</b><br/>
+              ① 화재안전기준 NFPC 102 (옥내소화전설비) / NFTC 102 [시행 2022. 12. 1.]<br/>
+              &nbsp;&nbsp;- 제5조(수원): N개×2.6 m³ 이상 (최대 5개) &nbsp;|&nbsp; 제6조: 방수압 0.17~0.7 MPa, 방수량 130 ℓ/min 이상<br/>
+              ② 화재안전성능기준 NFPC 109 (옥외소화전설비) [소방청고시 제2025-25호, 시행 2026. 3. 1.]<br/>
+              &nbsp;&nbsp;- 제4조(수원): 설치개수(최대 2개)×7 m³ 이상 &nbsp;|&nbsp; 제5조: 방수압 0.25 MPa 이상, 방수량 350 ℓ/min 이상<br/>
+              ③ 겸용 펌프 설계 원칙: 토출량 합산(+) / 전양정 최댓값(MAX) 채택 / 수원 합산(+)<br/>
+              ④ 배관 마찰손실: Hazen-Williams 공식 적용
+            </div>
+
+            <div id="dev-stamp" style={{fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:"0.08em"}}>MANMIN · Ver-2.0</div>
+          </div>
+        </>}
+
+      </div>
+    </div>
+  </div>
+
+  {showInstallBanner&&<div style={{position:"fixed",bottom:16,left:16,right:16,zIndex:9999}} className="pwa-install-banner"><div style={{borderRadius:16,padding:16,display:"flex",alignItems:"center",gap:12}}><img src="icons/icon-192.png" style={{width:48,height:48,borderRadius:12,flexShrink:0,boxShadow:"0 4px 12px rgba(0,0,0,0.3)"}} alt=""/><div style={{flex:1,minWidth:0}}><div style={{color:"white",fontSize:13,fontWeight:800}}>홈 화면에 설치하시겠습니까?</div><div style={{color:"#a5f3fc",fontSize:10,fontWeight:600,marginTop:4}}>오프라인에서도 사용 가능합니다</div></div><div style={{display:"flex",gap:8,flexShrink:0}}><button onClick={()=>setShowInstallBanner(false)} style={{color:"rgba(255,255,255,0.6)",fontSize:11,fontWeight:700,padding:"8px 12px",border:"none",background:"transparent",cursor:"pointer",borderRadius:8}}>닫기</button><button onClick={handleInstall} style={{background:"white",color:"#0e7490",fontSize:11,fontWeight:900,padding:"8px 16px",border:"none",borderRadius:8,cursor:"pointer",boxShadow:"0 2px 8px rgba(0,0,0,0.2)"}}>설치</button></div></div></div>}
+
+  </>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js').then(r=>console.log('[PWA]',r.scope)).catch(e=>console.warn(e));});}</script>
+</body>
+</html>
