@@ -1,12 +1,12 @@
 {
   "name": "겸용 펌프 용량 계산서 — 옥내소화전 + 옥외소화전",
-  "short_name": "겸용(옥내+옥외)",
-  "description": "NFTC 102 옥내소화전 + NFPC 109 옥외소화전 겸용 펌프 용량 계산 전용 앱 — ENGINEER KIM MANMIN Ver-2.0",
+  "short_name": "겸용[옥내+옥외]",
+  "description": "NFTC 102 + NFPC 109 기준 겸용 펌프 용량 계산서 — ENGINEER KIM MANMIN",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0f172a",
+  "background_color": "#ecfeff",
   "theme_color": "#0e7490",
   "lang": "ko",
   "categories": ["utilities", "productivity"],
@@ -22,9 +22,9 @@
   ],
   "shortcuts": [
     {
-      "name": "새 겸용 계산서",
+      "name": "새 계산서 작성",
       "short_name": "새 계산서",
-      "description": "옥내+옥외 겸용 펌프 용량 계산서를 새로 작성합니다",
+      "description": "겸용 펌프 용량 계산서를 새로 작성합니다",
       "url": "./index.html",
       "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
     }
