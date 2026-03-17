@@ -46,7 +46,7 @@ input,select,button,td,th,div,span,p,h1,h2,label{font-family:'Noto Sans KR',sans
     size:A4 portrait;
     margin:14mm 12mm 22mm 14mm;
     @bottom-right{
-      content:"MANMIN-Ver2.0";
+      content:"MANMIN-Ver3.0";
       font-family:'Orbitron',sans-serif;
       font-size:8pt;font-weight:700;color:#9ca3af;letter-spacing:0.08em;
     }
@@ -268,7 +268,7 @@ const { useState, useMemo, useEffect } = React;
 const H_FLOW_PER  = 130;   // 옥내소화전 개당 방사량 (ℓ/min)
 const H_NOZZLE    = 17;    // 노즐선단 방수압력 환산수두 0.17 MPa
 const H_WATER_T   = 20;    // 방사시간 (min)
-const H_MAX_N     = 5;     // 최대 동시사용 (NFTC 102 최대 5개)
+const H_MAX_N     = 2;     // 최대 동시사용 (NFTC 102 최대 2개)
 
 /* 옥외소화전 (NFPC 109) */
 const O_FLOW_PER  = 350;   // 옥외소화전 개당 방사량 (ℓ/min)
@@ -484,7 +484,7 @@ function FormulaModal({onClose}){
         <div className="fml-hi red">
           <div className="fml-card-ttl" style={{color:"#b91c1c"}}>D — 수원 산정</div>
           <code className="fml-eq red">수원(m³) = N개 × 130 ℓ/min × 20분 ÷ 1,000</code>
-          <div className="fml-note">최대 N = 5개 동시사용 한도 | 개당 방사량 130 ℓ/min 고정 (§2.2.1.3)</div>
+          <div className="fml-note">최대 N = 2개 동시사용 한도 | 개당 방사량 130 ℓ/min 고정 (§2.2.1.3)</div>
         </div>
       </div>
 
@@ -881,7 +881,7 @@ function App(){
             <div style={{fontSize:12,marginTop:8,opacity:0.85,letterSpacing:"0.02em"}}>
               옥내소화전(NFPC/NFTC 102) + 옥외소화전(NFPC 109) 겸용 &nbsp;
               <span style={{fontFamily:"'Orbitron',sans-serif",fontWeight:900,fontSize:12,color:"#93c5fd",letterSpacing:"0.08em",textShadow:"0 0 8px rgba(147,197,253,0.6)"}}>
-                MANMIN · Ver-2.0
+                MANMIN · Ver-3.0
               </span>
             </div>
           </div>
@@ -941,7 +941,7 @@ function App(){
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
               <div>
                 <LabelEl>A. 최대구역 소화전 수</LabelEl>
-                <InpNum val={hSys.hydrants} min={1} max={5} onChange={v=>ssH("hydrants",v)} unit="개 (최대 5)"/>
+                <InpNum val={hSys.hydrants} min={1} max={2} onChange={v=>ssH("hydrants",v)} unit="개 (최대 2)"/>
                 <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>개당 방사량 130 ℓ/min 고정</div>
               </div>
               <div><LabelEl>F. 실양정 (h₁)</LabelEl><InpNum val={hSys.actualHead} onChange={v=>ssH("actualHead",v)} unit="m"/></div>
@@ -968,7 +968,7 @@ function App(){
             velLimit={4} velLimit2={10} flowOpts={[130,260,390,520,650]}
             velLabel="⚠️ 유속 제한 (NFTC 102 §2.3.5): 펌프 토출 측 주배관 ≤ 4 m/s — 초과 시 ⚡ 표시"
             label="Ⅰ-2. 옥내소화전 배관 구간 데이터 입력"/>
-          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-2.0</div>
+          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-3.0</div>
         </></div>}
 
         {/* ════ TAB 1: 옥외소화전 입력 ════ */}
@@ -1007,7 +1007,7 @@ function App(){
             velLimit={4} velLimit2={10} flowOpts={[350,700]}
             velLabel="⚠️ 유속 제한: 펌프 토출 측 주배관 ≤ 4 m/s — 초과 시 ⚡ 표시"
             label="Ⅱ-2. 옥외소화전 배관 구간 데이터 입력"/>
-          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-2.0</div>
+          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-3.0</div>
         </></div>}
 
         {/* ════ TAB 2: 겸용 펌프 결과 ════ */}
@@ -1092,10 +1092,10 @@ function App(){
               ))}
             </div>
             <div style={{borderTop:"1px solid rgba(255,255,255,0.15)",paddingTop:14,textAlign:"center",fontSize:18,fontWeight:900,color:"#93c5fd",letterSpacing:"0.05em",fontFamily:"'Noto Sans Mono',monospace"}}>
-              Q = {f3(CP.M)} ㎥/min &nbsp;×&nbsp; H = {CP.J} m &nbsp;×&nbsp; P = {CP.Php} HP
+              Q = {f3(CP.M)} m³/min &nbsp;×&nbsp; H = {CP.J} m &nbsp;×&nbsp; P = {CP.Php} HP
             </div>
           </div>
-          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",marginTop:8,paddingRight:4}}>MANMIN · Ver-2.0</div>
+          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",marginTop:8,paddingRight:4}}>MANMIN · Ver-3.0</div>
         </></div>}
 
         {/* ════ TAB 3: 계산서 출력 ════ */}
@@ -1140,7 +1140,7 @@ function App(){
                   </tr></thead>
                   <tbody>
                     {[
-                      ["A","최대구역 소화전 수",H.A,"개",`NFTC 102 제5조 — 최대 5개 이하 (${H.A}개 적용)`],
+                      ["A","최대구역 소화전 수",H.A,"개",`NFTC 102 제5조 — 최대 2개 이하 (${H.A}개 적용)`],
                       ["B","소화전 개당 방사량",H_FLOW_PER,"ℓ/min","NFTC 102 제6조 (130 ℓ/min 고정)"],
                       ["C","펌프 토출량",H.Clpm,"ℓ/min",`C = A×B = ${H.A}×${H_FLOW_PER}`],
                       ["D","수원 용량",`${f3(H.D)}`,"m³",`D = ${H.A}×130×20÷1000 = ${f3(H.D)} m³`],
@@ -1319,7 +1319,7 @@ function App(){
                   </tbody>
                 </table>
                 <div style={{textAlign:"center",fontSize:16,fontWeight:900,color:"#1d4ed8",letterSpacing:"0.04em",borderTop:"1px solid #bfdbfe",paddingTop:12,fontFamily:"'Noto Sans Mono','Noto Sans KR',monospace"}}>
-                  Q = {f3(CP.M)} ㎥/min &nbsp;×&nbsp; H = {CP.J} m &nbsp;×&nbsp; P = {CP.Php} HP
+                  Q = {f3(CP.M)} m³/min &nbsp;×&nbsp; H = {CP.J} m &nbsp;×&nbsp; P = {CP.Php} HP
                 </div>
               </div>
             </div>
@@ -1335,7 +1335,7 @@ function App(){
               ④ 배관 마찰손실: Hazen-Williams 공식 적용
             </div>
 
-            <div id="dev-stamp" style={{fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:"0.08em"}}>MANMIN · Ver-2.0</div>
+            <div id="dev-stamp" style={{fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:"0.08em"}}>MANMIN · Ver-3.0</div>
           </div>{/* /report-zone */}
           </div>{/* /rpt-inner */}
           </div>{/* /rpt-outer */}

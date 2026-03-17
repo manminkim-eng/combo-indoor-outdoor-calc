@@ -4,8 +4,8 @@
    전략: Cache-First (로컬 자산) + Network-First (외부 CDN)
    ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME   = 'combined-in-out-hydrant-v1.0';
-const CDN_CACHE    = 'combined-in-out-hydrant-cdn-v1.0';
+const CACHE_NAME   = 'combined-in-out-v1.0';
+const CDN_CACHE    = 'combined-in-out-cdn-v1.0';
 const OFFLINE_PAGE = './index.html';
 
 const APP_SHELL = [
@@ -13,7 +13,8 @@ const APP_SHELL = [
   './icons/icon-72.png','./icons/icon-96.png','./icons/icon-128.png',
   './icons/icon-144.png','./icons/icon-152.png','./icons/icon-192.png',
   './icons/icon-384.png','./icons/icon-512.png',
-  './icons/apple-touch-icon.png','./icons/favicon-32.png','./icons/favicon-16.png',
+  './icons/apple-touch-icon.png',
+  './icons/favicon-32.png','./icons/favicon-16.png',
 ];
 
 const CDN_ORIGINS = [
@@ -24,7 +25,7 @@ const CDN_ORIGINS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(c=>c.addAll(APP_SHELL))
-      .then(()=>self.skipWaiting())
+      .then(()=>{ console.log('[SW] 프리캐시 완료'); return self.skipWaiting(); })
       .catch(()=>self.skipWaiting())
   );
 });
