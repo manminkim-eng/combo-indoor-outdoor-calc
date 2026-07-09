@@ -46,7 +46,7 @@ input,select,button,td,th,div,span,p,h1,h2,label{font-family:'Noto Sans KR',sans
     size:A4 portrait;
     margin:14mm 12mm 22mm 14mm;
     @bottom-right{
-      content:"MANMIN-Ver3.3";
+      content:"MANMIN-Ver3.4";
       font-family:'Orbitron',sans-serif;
       font-size:8pt;font-weight:700;color:#9ca3af;letter-spacing:0.08em;
     }
@@ -666,7 +666,7 @@ function FormulaModal({onClose}){
         <div className="fml-sec-ttl" style={{color:"#0e7490"}}>📋 적용 법령</div>
         <div className="fml-card">
           <div className="fml-note" style={{fontSize:11,lineHeight:2.1}}>
-            ① NFPC/NFTC 102 (옥내소화전) [시행 2022.12.1.]<br/>
+            ① NFPC/NFTC 102 (옥내소화전) [시행 2026.7.1.]<br/>
             &nbsp;&nbsp;- 수원: N×130ℓ/min×20min÷1,000 | 방수압 0.17~0.7 MPa | 방수량 ≥ 130 ℓ/min<br/>
             ② NFPC 109 (옥외소화전) [시행 2026.3.1.]<br/>
             &nbsp;&nbsp;- 수원: N×7 m³ (최대 2개) | 방수압 ≥ 0.25 MPa | 방수량 ≥ 350 ℓ/min<br/>
@@ -758,7 +758,7 @@ Auto·Glove V/V → Ball V/V</code>
                 📐 계산식 안내
               </div>
               <div style={{fontSize:10,opacity:0.65,fontWeight:500}}>
-                NFTC 102 옥내소화전 + NFPC 109 옥외소화전 겸용 · Ver-3.3
+                NFTC 102 옥내소화전 + NFPC 109 옥외소화전 겸용 · Ver-3.4
               </div>
             </div>
             <button className="fml-close" onClick={onClose} aria-label="닫기">✕</button>
@@ -786,7 +786,7 @@ Auto·Glove V/V → Ball V/V</code>
                 <span style={{fontSize:20}}>🚒</span> 겸용 펌프 용량 계산서 이용방법
               </div>
               <div style={{fontSize:10.5,color:"rgba(255,255,255,.75)",lineHeight:1.7}}>
-                옥내소화전(NFPC/NFTC 102) + 옥외소화전(NFPC 109) · MANMIN Ver-3.3<br/>
+                옥내소화전(NFPC/NFTC 102) + 옥외소화전(NFPC 109) · MANMIN Ver-3.4<br/>
                 아래 순서대로 입력하면 겸용 펌프 수원·양정·동력이 자동으로 산출됩니다.
               </div>
             </div>
@@ -884,7 +884,7 @@ Auto·Glove V/V → Ball V/V</code>
             <div style={{border:"1.5px solid #bfdbfe",background:"#eff6ff",borderRadius:10,padding:"12px 14px",marginTop:4}}>
               <div style={{fontSize:11,fontWeight:800,color:"#1e3a5f",marginBottom:6}}>📌 주요 법적 근거</div>
               <div className="fml-note" style={{fontSize:10.5,lineHeight:2.1}}>
-                <strong>NFPC/NFTC 102</strong> — 옥내소화전설비의 화재안전기준 [시행 2022.12.1.] (방수량 130 ℓ/min, 방수압 0.17 MPa)<br/>
+                <strong>NFPC/NFTC 102</strong> — 옥내소화전설비의 화재안전기준 [시행 2026.7.1.] (방수량 130 ℓ/min, 방수압 0.17 MPa)<br/>
                 <strong>NFPC 109</strong> — 옥외소화전설비의 화재안전성능기준 [시행 2026.3.1.] (방수량 350 ℓ/min, 방수압 0.25 MPa)<br/>
                 <strong>겸용 원칙</strong> — 유량 합산 / 양정 최댓값 채택 / 수원 합산<br/>
                 <strong>Hazen-Williams 공식</strong> — 배관 마찰손실 (C값: 백관·흑관 120, STS·CPVC 150)
@@ -1056,7 +1056,7 @@ function App(){
             <div style={{fontSize:12,marginTop:8,opacity:0.85,letterSpacing:"0.02em"}}>
               옥내소화전(NFPC/NFTC 102) + 옥외소화전(NFPC 109) 겸용 &nbsp;
               <span style={{fontFamily:"'Orbitron',sans-serif",fontWeight:900,fontSize:12,color:"#93c5fd",letterSpacing:"0.08em",textShadow:"0 0 8px rgba(147,197,253,0.6)"}}>
-                MANMIN · Ver-3.3
+                MANMIN · Ver-3.4
               </span>
             </div>
           </div>
@@ -1143,7 +1143,7 @@ function App(){
             velLimit={4} velLimit2={10} flowOpts={[130,260,390,520,650]}
             velLabel="⚠️ 유속 제한 (NFTC 102 §2.3.5): 펌프 토출 측 주배관 ≤ 4 m/s — 초과 시 ⚡ 표시"
             label="Ⅰ-2. 옥내소화전 배관 구간 데이터 입력"/>
-          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-3.3</div>
+          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-3.4</div>
         </></div>}
 
         {/* ════ TAB 1: 옥외소화전 입력 ════ */}
@@ -1182,7 +1182,7 @@ function App(){
             velLimit={4} velLimit2={10} flowOpts={[350,700]}
             velLabel="⚠️ 유속 제한: 펌프 토출 측 주배관 ≤ 4 m/s — 초과 시 ⚡ 표시"
             label="Ⅱ-2. 옥외소화전 배관 구간 데이터 입력"/>
-          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-3.3</div>
+          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-3.4</div>
         </></div>}
 
         {/* ════ TAB 2: 겸용 펌프 결과 ════ */}
@@ -1270,7 +1270,7 @@ function App(){
               Q = {f3(CP.M)} m³/min &nbsp;×&nbsp; H = {CP.J} m &nbsp;×&nbsp; P = {CP.Php} HP
             </div>
           </div>
-          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",marginTop:8,paddingRight:4}}>MANMIN · Ver-3.3</div>
+          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",marginTop:8,paddingRight:4}}>MANMIN · Ver-3.4</div>
         </></div>}
 
         {/* ════ TAB 3: 계산서 출력 ════ */}
@@ -1502,7 +1502,7 @@ function App(){
             {/* 적용 법령 */}
             <div className="print-section" style={{padding:13,background:"#f8fafc",borderRadius:8,fontSize:11,color:"#6b7280",border:BD,lineHeight:1.9}}>
               <b style={{color:"#374151"}}>▣ 적용 법령 및 기준</b><br/>
-              ① 화재안전기준 NFPC 102 (옥내소화전설비) / NFTC 102 [시행 2022. 12. 1.]<br/>
+              ① 화재안전기준 NFPC 102 (옥내소화전설비) / NFTC 102 [시행 2026. 7. 1.]<br/>
               &nbsp;&nbsp;- 제5조(수원): N개×2.6 m³ 이상 (최대 5개) &nbsp;|&nbsp; 제6조: 방수압 0.17~0.7 MPa, 방수량 130 ℓ/min 이상<br/>
               ② 화재안전성능기준 NFPC 109 (옥외소화전설비) [소방청고시 제2025-25호, 시행 2026. 3. 1.]<br/>
               &nbsp;&nbsp;- 제4조(수원): 설치개수(최대 2개)×7 m³ 이상 &nbsp;|&nbsp; 제5조: 방수압 0.25 MPa 이상, 방수량 350 ℓ/min 이상<br/>
@@ -1510,7 +1510,7 @@ function App(){
               ④ 배관 마찰손실: Hazen-Williams 공식 적용
             </div>
 
-            <div id="dev-stamp" style={{fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:"0.08em"}}>MANMIN · Ver-3.3</div>
+            <div id="dev-stamp" style={{fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:"0.08em"}}>MANMIN · Ver-3.4</div>
           </div>{/* /report-zone */}
           </div>{/* /rpt-inner */}
           </div>{/* /rpt-outer */}
@@ -1547,7 +1547,7 @@ function App(){
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
-<!-- ═══ Service Worker Ver 3.3 ═══ -->
+<!-- ═══ Service Worker Ver 3.4 ═══ -->
 <script>
 (function(){
   if(!('serviceWorker' in navigator)) return;
