@@ -3,8 +3,8 @@
    Developer MANMIN · Ver-3.3
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME   = 'manmin-indoor-outdoor-v3.3';
-const STATIC_CACHE = 'manmin-indoor-outdoor-static-v3.3';
+const CACHE_NAME   = 'manmin-indoor-outdoor-v3.4';
+const STATIC_CACHE = 'manmin-indoor-outdoor-static-v3.4';
 
 const PRECACHE_URLS = [
   './',
@@ -16,11 +16,14 @@ const PRECACHE_URLS = [
   './icons/favicon-32.png',
   './icons/favicon-16.png',
   './icons/favicon.ico',
+  /* 로컬 폴백 폰트 — CDN 차단·오프라인 시 한글 깨짐 방지 */
+  './assets/fonts/manmin-fonts.css',
+  './assets/fonts/NotoSansKR-var.woff2',
 ];
 
 /* ── INSTALL ── */
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing indoor-outdoor-v3.3...');
+  console.log('[SW] Installing indoor-outdoor-v3.4...');
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then((cache) => cache.addAll(PRECACHE_URLS).catch((e) => console.warn('[SW] Pre-cache 일부 실패:', e)))
