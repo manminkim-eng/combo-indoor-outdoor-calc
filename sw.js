@@ -1,10 +1,26 @@
 /* ═══════════════════════════════════════════════════════════════
+   R25 회차 2026-09-04 — 자기 접두어 캐시 조회 · cors 프리캐시 · opaque 가드 · 캐시명 v5.0.2 (S10)
    Service Worker — 겸용 펌프 용량 계산서 (옥내소화전 + 옥외소화전)
    Developer MANMIN · Ver-5.0
 ═══════════════════════════════════════════════════════════════ */
 
-const CACHE_NAME   = 'manmin-indoor-outdoor-v5.0';
-const STATIC_CACHE = 'manmin-indoor-outdoor-static-v5.0';
+/* §17-1 (2026-09-02) — 도구 고유 접두어. 종전 필터는 같은 origin 의 39종 캐시를 전부 지웠다 */
+const PREFIX       = 'manmin-indoor-outdoor-';
+/* ═ R25 (2026-09-04) — SW 캐시 origin 오염 차단 (S10 · 지시서 §21-1 R25)
+   전역 caches 의 match 는 origin 전체를 검색한다. manminkim-eng.github.io 는 34종이 한 origin 이라
+   다른 도구 캐시의 opaque 응답이 <script crossorigin>(cors) 요청에 돌아가 스크립트가 폐기됐다
+   (30 #root 빈 화면 · 40 html2canvas undefined). 자기 접두어 캐시만 조회하고, cross-origin
+   프리캐시는 cors 로 받으며, opaque↔cors 불일치 시 캐시를 쓰지 않는다. */
+const MM_EXCLUDE = [];   /* 내 접두어로 시작하지만 남의 캐시인 이름 (§17-1 충돌) */
+const mmOwn   = (k) => k.indexOf(PREFIX) === 0 && !MM_EXCLUDE.some((x) => k.indexOf(x) === 0);
+const mmReq   = (u) => (typeof u === 'string' && u.indexOf('http') === 0) ? new Request(u, { mode: 'cors' }) : u;
+const mmMatch = (req, opt) => caches.keys()
+  .then((ks) => ks.filter(mmOwn))
+  .then((ks) => ks.reduce((p, k) => p.then((r) => r || caches.open(k).then((c) => c.match(req, opt))), Promise.resolve(undefined)))
+  .then((r) => (r && r.type === 'opaque' && req && req.mode === 'cors') ? undefined : r);
+
+const CACHE_NAME   = 'manmin-indoor-outdoor-v5.0.2';
+const STATIC_CACHE = 'manmin-indoor-outdoor-static-v5.0.2';
 
 const PRECACHE_URLS = [
   './',
@@ -26,7 +42,7 @@ self.addEventListener('install', (event) => {
   console.log('[SW] Installing indoor-outdoor-v5.0...');
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      .then((cache) => cache.addAll(PRECACHE_URLS).catch((e) => console.warn('[SW] Pre-cache 일부 실패:', e)))
+      .then((cache) => Promise.allSettled(PRECACHE_URLS.map((u) => cache.add(mmReq(u)).catch((e) => console.warn('[SW] precache skip:', u, e)))).catch((e) => console.warn('[SW] Pre-cache 일부 실패:', e)))
       .then(() => self.skipWaiting())
   );
 });
@@ -39,7 +55,7 @@ self.addEventListener('activate', (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((k) => k !== CACHE_NAME && k !== STATIC_CACHE)
+            .filter((k) => k !== CACHE_NAME && k !== STATIC_CACHE && mmOwn(k))
             .map((k) => { console.log('[SW] 구버전 삭제:', k); return caches.delete(k); })
         )
       )
@@ -61,7 +77,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((c) => c.put(request, copy));
           return res;
         })
-        .catch(() => caches.match(request))
+        .catch(() => mmMatch(request))
     );
     return;
   }
@@ -76,8 +92,8 @@ self.addEventListener('fetch', (event) => {
         return res;
       })
       .catch(() =>
-        caches.match(request).then(
-          (cached) => cached || caches.match('./index.html')
+        mmMatch(request).then(
+          (cached) => cached || mmMatch('./index.html')
         )
       )
   );
