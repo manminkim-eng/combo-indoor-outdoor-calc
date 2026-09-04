@@ -1,4 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
+   S2 회차 2026-09-04 — index 소급(R1·R21·R26 등) 동반 캐시명 v5.0.3
    R25 회차 2026-09-04 — 자기 접두어 캐시 조회 · cors 프리캐시 · opaque 가드 · 캐시명 v5.0.2 (S10)
    Service Worker — 겸용 펌프 용량 계산서 (옥내소화전 + 옥외소화전)
    Developer MANMIN · Ver-5.0
@@ -19,8 +20,8 @@ const mmMatch = (req, opt) => caches.keys()
   .then((ks) => ks.reduce((p, k) => p.then((r) => r || caches.open(k).then((c) => c.match(req, opt))), Promise.resolve(undefined)))
   .then((r) => (r && r.type === 'opaque' && req && req.mode === 'cors') ? undefined : r);
 
-const CACHE_NAME   = 'manmin-indoor-outdoor-v5.0.2';
-const STATIC_CACHE = 'manmin-indoor-outdoor-static-v5.0.2';
+const CACHE_NAME   = 'manmin-indoor-outdoor-v5.0.3';
+const STATIC_CACHE = 'manmin-indoor-outdoor-static-v5.0.3';
 
 const PRECACHE_URLS = [
   './',

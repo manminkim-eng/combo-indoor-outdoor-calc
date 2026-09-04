@@ -65,6 +65,12 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 body{font-family:'Noto Sans KR','Noto Sans KR Local',sans-serif;background:#f1f5f9;-webkit-font-smoothing:antialiased;}
 input,select,button,td,th,div,span,p,h1,h2,label{font-family:'Noto Sans KR','Noto Sans KR Local',sans-serif !important;}
+/* v5.0-HDR — 우측 근거 블록은 마스터와 같이 768 에서 접는다 · 탭바 가로 스크롤은 전 폭 */
+@media(max-width:768px){.hdr-right-hide{display:none!important;}}
+.tab-bar-scroll{overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.tab-bar-scroll::-webkit-scrollbar{display:none;}
+/* v5.0-HDR (2026-09-02) — 각인은 클래스 특이성으로 태그목록 규칙을 이긴다(§3-7). 태그목록·계산서는 손대지 않는다 */
+.hdr-manmin{font-family:'Orbitron',sans-serif !important;}
 @media print{
   @page{
     size:A4 portrait;
@@ -316,16 +322,16 @@ input,select,button,td,th,div,span,p,h1,h2,label{font-family:'Noto Sans KR','Not
   .main-inner{padding-top:14px;padding-bottom:80px;}
   .hdr-h1{font-size:18px!important;}
   .hdr-pad{padding:0 14px!important;}
-  .hdr-right-hide{display:none!important;}
   .g-proj-3{grid-template-columns:1fr!important;}
   .g-res-2col{grid-template-columns:1fr!important;}
-  .tab-bar-scroll{overflow-x:auto;white-space:nowrap;scrollbar-width:none;}
-  .tab-bar-scroll::-webkit-scrollbar{display:none;}
 }
 @media(max-width:420px){
   .main-outer{padding:0 8px;}
 }
 </style>
+<style id="mm-r1">/* R1 (2026-09-04 · 지시서 §20-1 · S10 소급) — 인쇄 PDF 하단 각인 MANMIN · Ver 비표시. 버전은 A4 푸터 [MANMIN-Ver5.0] 이 담당 */
+#dev-stamp,#dev-stamp-print,.dev-stamp{display:none!important;}
+@media print{#dev-stamp,#dev-stamp-print,.dev-stamp{display:none!important;}}</style>
 </head>
 <body>
 <div id="root"></div>
@@ -1068,24 +1074,24 @@ function App(){
   <div style={{minHeight:"100vh",background:"#f1f5f9",fontFamily:"'Noto Sans KR','Noto Sans KR Local',sans-serif"}}>
 
     {/* ── 헤더 ── */}
-    <div className="no-print" style={{background:"linear-gradient(135deg,#0f172a,#1e3a5f,#1d4ed8)",color:"white",padding:"20px 0 0"}}>
-      <div className="hdr-pad" style={{maxWidth:1320,margin:"0 auto",padding:"0 24px"}}>
+    <div className="no-print" style={{background:"linear-gradient(135deg,#0f172a,#1e3a5f,#1d4ed8)",color:"white",padding:"20px 0 0",boxShadow:"0 2px 20px rgba(30,58,95,.35)"}}>
+      <div className="hdr-pad" style={{maxWidth:1300,margin:"0 auto",padding:"0 24px"}}>
         <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:16}}>
           <div>
-            <div style={{fontSize:11,fontWeight:600,opacity:0.65,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>
+            <div style={{fontSize:11,fontWeight:600,opacity:0.7,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>
               Combined Fire Pump System
             </div>
             <h1 className="hdr-h1" style={{fontSize:26,fontWeight:900,letterSpacing:"0.04em",lineHeight:1.2}}>
               겸용 펌프 용량 계산서
             </h1>
-            <div style={{fontSize:12,marginTop:8,opacity:0.85,letterSpacing:"0.02em"}}>
+            <div style={{fontSize:11,marginTop:8,opacity:0.85,letterSpacing:"0.02em"}}>
               옥내소화전(NFPC/NFTC 102) + 옥외소화전(NFPC 109) 겸용 &nbsp;
-              <span style={{fontFamily:"'Orbitron',sans-serif",fontWeight:900,fontSize:12,color:"#93c5fd",letterSpacing:"0.08em",textShadow:"0 0 8px rgba(147,197,253,0.6)"}}>
+              <span className="hdr-manmin" style={{fontFamily:"'Orbitron',sans-serif",fontWeight:900,fontSize:12,color:"#93c5fd",letterSpacing:"0.08em",textShadow:"0 0 8px rgba(147,197,253,0.6)"}}>
                 MANMIN · Ver-5.0
               </span>
             </div>
           </div>
-          <div className="hdr-right-hide" style={{textAlign:"right",fontSize:11,opacity:0.8}}>
+          <div className="hdr-right-hide" style={{textAlign:"right",fontSize:11,opacity:0.75}}>
             <div style={{fontWeight:700,fontSize:13}}>NFTC 102 + NFPC 109</div>
             <div>옥내소화전 + 옥외소화전 겸용</div>
           </div>
@@ -1093,7 +1099,7 @@ function App(){
         <div className="tab-bar-scroll" style={{display:"flex",gap:4,paddingTop:4}}>
           {TABS.map((t,i)=>(
             <button key={i} onClick={()=>setTab(i)}
-              style={{padding:"11px 24px",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,
+              style={{padding:"11px 16px",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,
                 fontFamily:"'Noto Sans KR','Noto Sans KR Local',sans-serif",letterSpacing:"0.02em",
                 background:tab===i?TAB_COLORS[i]:"transparent",
                 color:tab===i?"white":"rgba(255,255,255,0.75)",
@@ -1108,7 +1114,7 @@ function App(){
 
     {/* ── 요약 바 ── */}
     <div className="no-print" style={{background:"#0f172a",padding:"10px 0"}}>
-      <div style={{maxWidth:1320,margin:"0 auto",padding:"0 24px",display:"flex",flexWrap:"wrap",gap:20}}>
+      <div style={{maxWidth:1300,margin:"0 auto",padding:"0 24px",display:"flex",flexWrap:"wrap",gap:14}}>
         {[
           ["옥내소화전 유량",`${H.Clpm} ℓ/min`],
           ["옥외소화전 유량",`${O.Clpm} ℓ/min`],
@@ -1963,5 +1969,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 
 
 <!-- Cloudflare Web Analytics --><script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "e7878b8cc50d40039bb212406a3f1757"}'></script><!-- End Cloudflare Web Analytics -->
+<script>/* R26 (2026-09-04 · 지시서 §20-15 ③ · S10 소급) — 인쇄 중 문서 제목을 비워 PDF 머리글의 페이지 제목을 지운다. 쪽번호·URL 은 브라우저 옵션 */
+(function(){var t=null;window.addEventListener('beforeprint',function(){if(t===null){t=document.title;}document.title=' ';});window.addEventListener('afterprint',function(){if(t!==null){document.title=t;t=null;}});})();</script>
 </body>
 </html>
