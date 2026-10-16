@@ -335,77 +335,170 @@ input,select,button,td,th,div,span,p,h1,h2,label{font-family:'Noto Sans KR','Not
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel" data-presets="env,react">
-const { useState, useMemo, useEffect } = React;
+<script id="cio-engine">
+/* v5.1.0 — 계산 엔진 단일화: 화면 · A4 · 검증(_검증/verify_cio.py)이 같은 cioCalc()를 쓴다
+   근거(LawMCP 원문 대조 2026-10-16)
+   · 옥내소화전설비의 화재안전성능기준(NFPC 102) 소방청고시 제2025-25호(타법개정, 2026. 3. 1. 시행)
+   · 옥내소화전설비의 화재안전기술기준(NFTC 102) 국립소방연구원공고 제2026-34호(2026. 7. 1. 시행)
+   · 옥외소화전설비의 화재안전성능기준(NFPC 109) 소방청고시 제2025-28호(2025. 12. 31. 일부개정, 2026. 3. 1. 시행)
+   · 옥외소화전설비의 화재안전기술기준(NFTC 109) 국립소방연구원공고 제2026-9호(2026. 3. 1. 시행)
+   · 고층건축물의 화재안전기술기준(NFTC 604) 공고 제2023-44호(2023. 12. 20.) */
+var H_FLOW_PER  = 130;   /* 옥내소화전 1개 130 L/min 이상(계산 130) — NFPC 102 제5조①3호 · 4호 */
+var H_NOZZLE    = 17;    /* 옥내 노즐선단 0.17 MPa 이상 ≒ 17 m — NFPC 102 제5조①3호 */
+var O_FLOW_PER  = 350;   /* 옥외소화전 1개 350 L/min 이상(계산 350) — NFPC 109 제5조①3호 */
+var O_NOZZLE    = 25;    /* 옥외 노즐선단 0.25 MPa 이상 ≒ 25 m — NFPC 109 제5조①3호 */
+var O_MAX_N     = 2;     /* 옥외소화전 설치개수(2개 이상이면 2개) — NFPC 109 제4조① */
+var O_WATER_PER = 7;     /* 옥외소화전 1개당 7 m³ — NFPC 109 제4조① · NFTC 109 2.1.1 */
+var VEL_MAIN    = 4;     /* 펌프 토출 측 주배관 4 m/s 이하 — NFTC 102 2.3.5 (옥외 기준에는 유속 규정 없음 → 준용 참고) */
+var MPA_M       = 0.00980665;
 
-/* ══════════════════════════════════════════════════════════════
-   공통 상수
-══════════════════════════════════════════════════════════════ */
-/* 옥내소화전 (NFPC/NFTC 102) */
-const H_FLOW_PER  = 130;   // 옥내소화전 개당 방사량 (ℓ/min)
-const H_NOZZLE    = 17;    // 노즐선단 방수압력 환산수두 0.17 MPa
-const H_WATER_T   = 20;    // 방사시간 (min)
-const H_MAX_N     = 2;     // 최대 동시사용 (NFTC 102 최대 2개)
-
-/* 옥외소화전 (NFPC 109) */
-const O_FLOW_PER  = 350;   // 옥외소화전 개당 방사량 (ℓ/min)
-const O_NOZZLE    = 25;    // 노즐선단 방수압력 환산수두 0.25 MPa
-const O_WATER_T   = 20;    // 방사시간 (min)
-const O_MAX_N     = 2;     // 최대 동시사용 (NFPC 109 최대 2개)
-const O_WATER_PER = 7;     // 옥외소화전 1개당 수원 (m³)
-
-const PIPE_CONFIG = {
-  SCH10:{label:"배관용 탄소강관 KS D3507 (백관)",       shortLabel:"KS D3507",C:120,
-    inner:{25:27.6,32:36.2,40:42.1,50:53.2,65:69.0,80:81.0,100:105.3,125:130.1,150:155.5,200:204.6}},
-  SCH40:{label:"압력배관용 탄소강관 KS D3562 (흑관)",   shortLabel:"KS D3562",C:120,
-    inner:{25:26.6,32:35.1,40:40.9,50:52.5,65:62.7,80:77.9,100:102.3,125:128.2,150:154.1,200:202.7}},
-  STS:  {label:"배관용 스테인리스강관 KS D3595",        shortLabel:"STS",     C:150,
-    inner:{25:27.6,32:36.8,40:42.8,50:54.8,65:70.0,80:85.0,100:108.2,125:133.4,150:160.0,200:210.0}},
-  CPVC: {label:"내식성 CPVC관 (소방용)",               shortLabel:"CPVC",    C:150,
-    inner:{25:26.6,32:35.1,40:40.9,50:52.5,65:62.7,80:79.4,100:101.6,125:127.0,150:154.1,200:203.2}},
+/* 강관 내경 = KS 외경 − 2 × 두께 (KS D 3507 · KS D 3562 Sch 40 — 옥내 · 옥외소화전 · 겸용 v5.1.0과 같은 규격표).
+   STS · CPVC 내경과 C값(120 · 150)은 MANMIN 참고값(화재안전기준에 수치 없음) */
+var PIPE_CONFIG = {
+  SCH10:{label:"배관용 탄소강관 KS D3507 (백관)",        shortLabel:"KS D3507",       C:120,
+         inner:{25:27.6,32:35.7,40:41.6,50:52.9,65:67.9,80:80.7,100:105.3,125:130.8,150:155.2,200:204.7}},
+  SCH40:{label:"압력 배관용 탄소강관 KS D 3562 (흑관)",  shortLabel:"KS D3562",       C:120,
+         inner:{25:27.2,32:35.5,40:41.2,50:52.7,65:65.9,80:78.1,100:102.3,125:126.6,150:151.0,200:199.9}},
+  STS:  {label:"배관용 스테인리스 강관 KS D 3576 · 3595", shortLabel:"STS(스테인리스)",C:150,
+         inner:{25:27.6,32:36.8,40:42.8,50:54.8,65:70.0,80:85.0,100:108.2,125:133.4,150:160.0,200:210.0}},
+  CPVC: {label:"소방용 합성수지배관 CPVC (설치장소 제한)", shortLabel:"CPVC",        C:150,
+         inner:{25:26.6,32:35.1,40:40.9,50:52.5,65:62.7,80:79.4,100:101.6,125:127.0,150:154.1,200:203.2}},
 };
-const FITTING_EQ={
+/* [90°엘보,45°엘보,분류T,직류T,Gate,Ball,Angle,Check] — 관부속 상당직관 길이(m) · MANMIN 참고값 */
+var FITTING_EQ={
   25:[0.9,0.54,1.5,0.27,0.18,7.5,4.5,2.0],  32:[1.2,0.72,1.8,0.36,0.24,10.5,5.4,2.5],
   40:[1.5,0.90,2.1,0.45,0.30,13.8,6.5,3.1], 50:[2.1,1.20,3.0,0.60,0.39,16.5,8.4,4.0],
   65:[2.4,1.30,3.6,0.75,0.48,19.5,10.2,4.6],80:[3.0,1.80,4.5,0.90,0.60,24.0,12.0,5.7],
   100:[4.2,2.40,6.3,1.20,0.81,37.5,16.5,7.6],125:[5.1,3.00,7.5,1.50,0.99,42.0,21.0,10.0],
   150:[6.0,3.60,9.0,1.80,1.20,49.5,24.0,12.0],200:[6.5,3.70,14.0,4.00,1.40,70.0,33.0,15.0],
 };
-/* 옥내소화전 호스 */
-const H_HOSE_TYPES={
-  1:{label:"40mm 아마호스",     rate:26,fixed:null},
-  2:{label:"40mm 고무내장호스", rate:12,fixed:null},
-  3:{label:"50mm 아마호스",     rate:7, fixed:null},
-  4:{label:"50mm 고무내장호스", rate:3, fixed:null},
-  5:{label:"25mm 호스릴",       rate:0, fixed:14},
+/* 호스 마찰손실률(m/100 m) · 호스릴 고정값 — MANMIN 참고값 */
+var H_HOSE_TYPES={
+  1:{label:"40mm 아마호스",     rate:26, fixed:null},
+  2:{label:"40mm 고무내장호스", rate:12, fixed:null},
+  3:{label:"50mm 아마호스",     rate:7,  fixed:null},
+  4:{label:"50mm 고무내장호스", rate:3,  fixed:null},
+  5:{label:"25mm 호스릴",       rate:0,  fixed:14},
 };
-/* 옥외소화전 호스 — 65mm 전용 (NFPC 109 제6조②) */
-const O_HOSE_TYPES={
+/* 옥외소화전 호스 구경 65 mm — NFPC 109 제6조② · NFTC 109 2.3.2 / 손실률은 MANMIN 참고값 */
+var O_HOSE_TYPES={
   1:{label:"65mm 마(아마)호스",  rate:8, fixed:null},
   2:{label:"65mm 고무내장호스",  rate:4, fixed:null},
 };
-const TRANS_TYPE={1:{label:"전동기 직결",k:1.1},2:{label:"전동기 이외의 원동기",k:1.15}};
-const H_PIPE_SIZES=[40,50,65,80,100,125,150,200];
-const O_PIPE_SIZES=[40,50,65,80,100,125,150,200];
-const PUMP_SIZES=[40,50,65,80,100,125,150];
-const HP_STEPS=[3,5,7.5,10,15,20,25,30,40,50,60,75,100,125,150,200];
-const BD="1px solid #d1d5db";
+var TRANS_TYPE={1:{label:"전동기 직결",k:1.1},2:{label:"전동기 이외의 원동기",k:1.15}};   /* MANMIN 참고값 */
+var H_PIPE_SIZES=[40,50,65,80,100,125,150,200];
+var O_PIPE_SIZES=[40,50,65,80,100,125,150,200];
+var C_PIPE_SIZES=[65,80,100,125,150,200];
+var PUMP_SIZES=[40,50,65,80,100,125,150];
+var HP_STEPS=[3,5,7.5,10,15,20,25,30,40,50,60,75,100,125,150,200];
 
+/* v5.1.0 — 마찰계수(m/100 m). v5.0은 m/m 값을 다시 ÷100 해 손실수두가 1/100로 계산되던 것을 정정 */
 function calcFriction(Q,D,pipeType){
   if(!Q||!D)return 0;
-  const cfg=PIPE_CONFIG[pipeType]||PIPE_CONFIG.SCH10;
-  const id=(cfg.inner[D]||D)/1000;
-  const Qm=Q/1000/60;
-  return 10.67*Math.pow(Qm,1.852)/(Math.pow(cfg.C,1.852)*Math.pow(id,4.87));
+  var cfg=PIPE_CONFIG[pipeType]||PIPE_CONFIG.SCH10;
+  var Di=cfg.inner[D]; if(!Di)return 0;
+  return 10.67*Math.pow(Q/60000,1.852)/(Math.pow(cfg.C,1.852)*Math.pow(Di/1000,4.87))*100;
 }
 function calcVelocity(Q,D,pipeType){
   if(!Q||!D)return 0;
-  const cfg=PIPE_CONFIG[pipeType]||PIPE_CONFIG.SCH10;
-  const id=(cfg.inner[D]||D)/1000;
-  const Qm=Q/1000/60;
-  return Qm/(Math.PI/4*id*id);
+  var cfg=PIPE_CONFIG[pipeType]||PIPE_CONFIG.SCH10;
+  var Di=cfg.inner[D]; if(!Di)return 0;
+  return (Q/60000)/(Math.PI*Math.pow(Di/2000,2));
 }
-function nextHP(kw){const hp=kw*1.341;for(const h of HP_STEPS){if(h>=hp)return h;}return Math.ceil(hp/5)*5;}
+function nextHP(kw){var hp=kw*1.341;for(var h of HP_STEPS){if(h>=hp)return h;}return Math.ceil(hp/5)*5;}
+/* 구간 1줄 — 상당직관 · 마찰계수 · 손실수두 · 유속 · 유속 판정 */
+function segDet(s,pipeType,vlim){
+  var eq=FITTING_EQ[s.dia]||FITTING_EQ[100];
+  var counts=[s.e90,s.e45,s.teeB,s.teeS,s.gate,s.ball,s.angle,s.check];
+  var fl=counts.reduce(function(a,c,j){return a+(+c||0)*eq[j];},0);
+  var tl=(+s.len||0)+fl;
+  var fric=calcFriction(s.flow,s.dia,pipeType);
+  var hl=fric*tl/100;
+  var vel=calcVelocity(s.flow,s.dia,pipeType);
+  return {eq:eq,counts:counts,fl:fl,tl:tl,fric:fric,hl:hl,vel:vel,vlim:vlim,velOver:vel>vlim};
+}
+
+function cioCalc(hSys,hSegs,oSys,oSegs,cSys,cSegs,buildingFloor){
+  var bf=+buildingFloor||1;
+  /* ── 공통 배관 (펌프 토출 측 — Q옥내 + Q옥외, v5.1.0 신설) — 손실을 두 설비 양정에 모두 더한다 · 4 m/s(NFTC 102 2.3.5) ── */
+  var cPipe=cSys.pipeType||"SCH10";
+  var cdets=(cSegs||[]).map(function(s){return segDet(s,cPipe,VEL_MAIN);});
+  var Fc=cdets.reduce(function(a,d){return a+d.hl;},0);
+
+  /* ── 옥내소화전 — NFPC 102 제4조① · 제5조①3호 · 4호 / NFTC 102 2.1.1 · 2.2.1.3 · 2.2.1.4 / 고층 NFTC 604 2.1.1 (5개 × 5.2 m³ · 50층 이상 7.8 m³) ── */
+  var hMaxCount = bf===1 ? 2 : 5;
+  var hWaterTime = bf===1 ? 20 : bf===2 ? 40 : 60;
+  var hA=Math.min(hMaxCount,Math.max(1,hSys.hydrants|0));
+  var hClpm=hA*H_FLOW_PER;
+  var hD=hClpm*hWaterTime/1000;                       /* = A × 2.6 / 5.2 / 7.8 m³ */
+  var hdets=hSegs.map(function(s){return segDet(s,hSys.pipeType,VEL_MAIN);});
+  var hF=hdets.reduce(function(a,d){return a+d.hl;},0);
+  var hose=H_HOSE_TYPES[hSys.hoseType]||H_HOSE_TYPES[2];
+  var hG=hose.fixed!=null?hose.fixed:hose.rate*hSys.hoseLen/100;
+  var hE=+hSys.actualHead;
+  var hSub=hE+Fc+hF+hG+H_NOZZLE;
+  var hI=hSub*0.1;                                    /* 안전율 10 % · 올림 = MANMIN 참고값 */
+  var hJraw=hSub+hI; var hJ=Math.ceil(hJraw);
+
+  /* ── 옥외소화전 — NFPC 109 제4조① · 제5조①3호 / NFTC 109 2.1.1 · 2.2.1.3 ── */
+  var oA=Math.min(O_MAX_N,Math.max(1,oSys.hydrants|0));
+  var oClpm=oA*O_FLOW_PER;
+  var oD=oA*O_WATER_PER;
+  var odets=oSegs.map(function(s){return segDet(s,oSys.pipeType,VEL_MAIN);});
+  var oF=odets.reduce(function(a,d){return a+d.hl;},0);
+  var ohose=O_HOSE_TYPES[oSys.hoseType]||O_HOSE_TYPES[2];
+  var oG=ohose.rate*oSys.hoseLen/100;
+  var oE=+oSys.actualHead;
+  var oSub=oE+Fc+oF+oG+O_NOZZLE;
+  var oI=oSub*0.1;
+  var oJraw=oSub+oI; var oJ=Math.ceil(oJraw);
+
+  /* ── 겸용 — 수원 · 토출량 = 각 설비 합 이상 (NFPC 102 제12조①② · NFPC 109 제11조①② · NFTC 102 2.9.1 · 2.9.2 · NFTC 109 2.8.1 · 2.8.2).
+       NFTC 단서(최대의 것 이상)는 「고정식 소화설비가 2 이상」인 경우 — 옥내 · 옥외소화전은 고정식이 아니므로 항상 합산 ── */
+  var Clpm=hClpm+oClpm;
+  var D=hD+oD;
+  /* 옥상수조 — 옥내소화전 유효수량 외 1/3 이상(NFPC 102 제4조② · NFTC 102 2.1.2 · 고층 NFTC 604 2.1.2), 단서 해당 시 면제.
+     옥외소화전설비 기준에는 옥상수조 규정 없음 → 옥내소화전 유효수량에만 적용 */
+  var roofEx=!!(+cSys.roofEx); var R=roofEx?0:hD/3; var Dt=D+R;
+  /* 전양정 — 두 설비 중 큰 값(각 설비 성능에 지장이 없을 것: NFTC 102 2.2.1.5 · NFTC 109 2.2.1.4 단서) */
+  var J=Math.max(hJ,oJ); var hHead=hJ>=oJ?"옥내소화전":"옥외소화전";
+  var M=Clpm/1000; var N=cSys.pumpEff/100;
+  var K=(TRANS_TYPE[cSys.transType]&&TRANS_TYPE[cSys.transType].k)||1.1;
+  var Pkw=0.163*M*J*K/N; var Php=nextHP(Pkw);
+  /* 고층건축물(bf 2 · 3)은 옥내소화전 펌프를 전용 + 예비펌프(NFTC 604 2.1.3) → 겸용 펌프 불가 경고(계산값은 참고로 그대로 표시) */
+
+  /* ── 압력 판정(표시 전용 · 계산값 불변) — 겸용 전양정 J 기준
+       S = J × 0.00980665 MPa — 1.2 MPa 이상이면
+         옥내 KS D 3562 · 3583 (NFPC 102 제6조①2호 · NFTC 102 2.3.1.2)
+         옥외 KS D 3562 · 3583 (NFTC 109 2.3.3.2) — NFPC 109 제6조③은 KS D 3562 · KS D 5301 (두 기준 병기)
+         → 앱 선택지 중 KS D 3562만 적합(어느 기준이든 같음)
+       옥내 최저층 노즐 Th = (J − 최저층 방수구 높이 − 호스 손실) × MPA — 0.7 MPa 초과 시 감압장치(NFPC 102 제5조①3호 단서)
+       옥외 최저 노즐   To = (J − 최저 호스접결구 높이 − 호스 손실) × MPA — 0.7 MPa 초과 시 감압장치(NFPC 109 제5조①3호 단서)
+       (배관 마찰 미차감 · 펌프 성능곡선 미반영 추정 — 보수적) ── */
+  var Pdis=J*MPA_M; var hiPress=Pdis>=1.2;
+  var okH=!hiPress||hSys.pipeType==="SCH40", okO=!hiPress||oSys.pipeType==="SCH40", okC=!hiPress||cPipe==="SCH40";
+  var pipePressOK=okH&&okO&&okC;
+  var hL=+(hSys.lowHead||0); var PlowH=(J-hL-hG)*MPA_M; var needPRVh=PlowH>0.7; var hStarH=J-hG-0.7/MPA_M;
+  var oL=+(oSys.lowHead||0); var PlowO=(J-oL-oG)*MPA_M; var needPRVo=PlowO>0.7; var hStarO=J-oG-0.7/MPA_M;
+  var velOverN=cdets.filter(function(d){return d.velOver;}).length+hdets.filter(function(d){return d.velOver;}).length+odets.filter(function(d){return d.velOver;}).length;
+
+  return {
+    Fc:Fc,cdets:cdets,cPipe:cPipe,
+    H:{A:hA,B:H_FLOW_PER,Clpm:hClpm,D:hD,E:hE,Fc:Fc,F:hF,G:hG,H4:H_NOZZLE,I:hI,Jraw:hJraw,J:hJ,hose:hose,hMaxCount:hMaxCount,hWaterTime:hWaterTime,sdets:hdets,
+       hL:hL,Plow:PlowH,needPRV:needPRVh,hStar:hStarH,pipeOK:okH},
+    O:{A:oA,B:O_FLOW_PER,Clpm:oClpm,D:oD,E:oE,Fc:Fc,F:oF,G:oG,H4:O_NOZZLE,I:oI,Jraw:oJraw,J:oJ,hose:ohose,sdets:odets,
+       hL:oL,Plow:PlowO,needPRV:needPRVo,hStar:hStarO,pipeOK:okO},
+    C:{hiRise:bf>1,Clpm:Clpm,J:J,D:D,R:R,Dt:Dt,roofEx:roofEx,M:M,N:N,K:K,Pkw:Pkw,Php:Php,hHead:hHead,
+       Pdis:Pdis,hiPress:hiPress,pipeOK:okC,pipePressOK:pipePressOK,velOverN:velOverN}
+  };
+}
+window.CIOENG={calc:cioCalc,PIPE_CONFIG:PIPE_CONFIG,FITTING_EQ:FITTING_EQ,H_HOSE_TYPES:H_HOSE_TYPES,O_HOSE_TYPES:O_HOSE_TYPES,TRANS_TYPE:TRANS_TYPE};
+</script>
+<script type="text/babel" data-presets="env,react">
+const { useState, useMemo, useEffect } = React;
+
+/* 상수 · 계산 함수는 위 <script id="cio-engine"> (v5.1.0) */
+const BD="1px solid #d1d5db";
 const f2=v=>isNaN(v)?"-":Number(v).toFixed(2);
 const f3=v=>isNaN(v)?"-":Number(v).toFixed(3);
 const ff=(v,d=1)=>isNaN(v)?"-":Number(v).toFixed(d);
@@ -449,12 +542,12 @@ function Card({label,value,unit,formula,bc}){
     {formula&&<div style={{fontSize:9,color:"#9ca3af",marginTop:4,fontFamily:"'JetBrains Mono','Noto Sans KR',monospace"}}>{formula}</div>}
   </div>;
 }
-function PipeTable({segs,setSegs,pipeType,pipeSizes,velLimit,velLimit2,label,velLabel,flowOpts}){
+function PipeTable({segs,setSegs,pipeType,pipeSizes,velLimit,label,velLabel,flowOpts,hdColor}){
   const HDRS=["NO","유량\n(ℓ/min)","관경\n(A)","직관\n(m)","90°\nElbow","45°\nElbow","분류\nTee","직류\nTee","Gate\nV/V","Ball\nV/V","Angle\nV/V","Check\nV/V","상당직관\n(m)","마찰계수\n(m/100m)","손실수두\n(m)","유속\n(m/s)","×"];
   const upd=(i,k,v)=>setSegs(p=>{const n=[...p];n[i]={...n[i],[k]:v};return n;});
-  const add=()=>setSegs(p=>[...p,{flow:flowOpts?flowOpts[0]:130,dia:100,len:10,e90:0,e45:0,teeB:0,teeS:0,gate:0,ball:0,angle:0,check:0}]);
+  const add=()=>setSegs(p=>[...p,{flow:flowOpts?flowOpts[0]:(p.length?p[p.length-1].flow:130),dia:100,len:10,e90:0,e45:0,teeB:0,teeS:0,gate:0,ball:0,angle:0,check:0}]);
   const del=i=>setSegs(p=>p.filter((_,j)=>j!==i));
-  return <Box title={label} color="#334155">
+  return <Box title={label} color={hdColor||"#334155"}>
     {/* 모바일 스크롤 안내 (860px 이하에서만 표시) */}
     <div className="seg-hint">
       <span style={{fontSize:14}}>←</span>
@@ -482,9 +575,8 @@ function PipeTable({segs,setSegs,pipeType,pipeSizes,velLimit,velLimit2,label,vel
             const fric=calcFriction(s.flow,s.dia,pipeType);
             const hl=fric*tl/100;
             const vel=calcVelocity(s.flow,s.dia,pipeType);
-            const lim=velLimit||4;
-            const lim2=velLimit2||10;
-            const vW=vel>lim2?"⚠":vel>lim?"⚡":"";
+            const lim=velLimit||4;   /* v5.1.0 — 4 m/s 초과 ⚠ (NFTC 102 2.3.5) */
+            const vW=vel>lim?"⚠":"";
             const num=(k,v)=><input type="number" value={v} onChange={e=>upd(i,k,+(e.target.value))}
               style={{width:"100%",padding:"2px",textAlign:"center",fontSize:10,border:"1px solid #e5e7eb",borderRadius:4,fontFamily:"'JetBrains Mono','Noto Sans KR',monospace",background:"white"}}/>;
             return <tr key={i} style={{background:i%2?"#f9fafb":"white"}}>
@@ -516,7 +608,7 @@ function PipeTable({segs,setSegs,pipeType,pipeSizes,velLimit,velLimit2,label,vel
             </tr>;
           })}
           <tr style={{background:"#f1f5f9"}}>
-            <td colSpan={14} style={{border:BD,padding:"5px 10px",fontWeight:700,fontSize:11,color:"#374151"}}>배관 마찰손실 합계 (F)</td>
+            <td colSpan={14} style={{border:BD,padding:"5px 10px",fontWeight:700,fontSize:11,color:"#374151"}}>배관 마찰손실 합계</td>
             <td style={{border:BD,padding:"5px",textAlign:"center",fontFamily:"'JetBrains Mono','Noto Sans KR',monospace",color:"#1d4ed8",fontWeight:900,fontSize:13}}>
               {f3(segs.reduce((s2,s)=>{const eq=FITTING_EQ[s.dia]||FITTING_EQ[100];const fl=s.e90*eq[0]+s.e45*eq[1]+s.teeB*eq[2]+s.teeS*eq[3]+s.gate*eq[4]+s.ball*eq[5]+s.angle*eq[6]+s.check*eq[7];const tl=(s.len||0)+fl;return s2+calcFriction(s.flow,s.dia,pipeType)*tl/100;},0))}
             </td>
@@ -529,7 +621,7 @@ function PipeTable({segs,setSegs,pipeType,pipeSizes,velLimit,velLimit2,label,vel
       <button onClick={add} style={{padding:"6px 14px",background:"#334155",color:"white",border:"none",borderRadius:8,cursor:"pointer",fontWeight:700,fontSize:12}}>+ 구간 추가</button>
     </div>
     <div style={{marginTop:8,padding:"7px 12px",background:"#fef2f2",border:"1.5px solid #fca5a5",borderRadius:8,fontSize:11,color:"#991b1b",fontFamily:"'Noto Sans KR','Noto Sans KR Local',sans-serif",fontWeight:600}}>
-      {velLabel||`⚠️ 유속 제한: ≤ ${velLimit||4} m/s — 초과 시 ⚡ 표시`}
+      {velLabel||`⚠️ 유속 제한: ≤ ${velLimit||4} m/s — 초과 시 ⚠ 표시`}
     </div>
     <div style={{marginTop:8,padding:"10px 14px",background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:8}}>
       <div style={{fontSize:11,fontWeight:700,color:"#374151",marginBottom:6}}>【 관부속 상당직관 적용 참고사항 】</div>
@@ -557,16 +649,16 @@ function FormulaModal({onClose}){
   const T0=(
     <>
       <div className="fml-sec">
-        <div className="fml-sec-ttl" style={{color:"#b91c1c"}}>💧 수원 용량 (NFTC 102 §2.1.1.4)</div>
+        <div className="fml-sec-ttl" style={{color:"#b91c1c"}}>💧 수원 용량 (NFPC 102 제4조① · NFTC 102 2.1.1)</div>
         <div className="fml-hi red">
           <div className="fml-card-ttl" style={{color:"#b91c1c"}}>D — 수원 산정</div>
-          <code className="fml-eq red">수원(m³) = N개 × 130 ℓ/min × 20분 ÷ 1,000</code>
-          <div className="fml-note">최대 N = 2개 동시사용 한도 | 개당 방사량 130 ℓ/min 고정 (§2.2.1.3)</div>
+          <code className="fml-eq red">수원(m³) = N개 × 2.6 m³ (= N × 130 ℓ/min × 20분 ÷ 1,000)</code>
+          <div className="fml-note">N = 설치개수가 가장 많은 층의 설치개수(2개 이상이면 2개) | 130 ℓ/min 이상(계산 130) — NFPC 102 제5조①3호 · 4호<br/>고층건축물 5개 × 5.2 m³(50층 이상 7.8 m³) — NFTC 604 2.1.1 | 옥상수조 = 유효수량 ÷ 3 (NFPC 102 제4조② · NFTC 102 2.1.2)</div>
         </div>
       </div>
 
       <div className="fml-sec">
-        <div className="fml-sec-ttl" style={{color:"#b91c1c"}}>📏 전양정 구성 (NFTC 102 §2.3.3)</div>
+        <div className="fml-sec-ttl" style={{color:"#b91c1c"}}>📏 전양정 구성 (펌프 방식 — MANMIN 적용식)</div>
         <div className="fml-g2">
           <div className="fml-card">
             <div className="fml-card-ttl">E — 실양정 h₁</div>
@@ -576,7 +668,7 @@ function FormulaModal({onClose}){
           <div className="fml-card">
             <div className="fml-card-ttl">H₄ — 노즐 환산수두</div>
             <code className="fml-eq red">H₄ = 17 m (고정) ← 0.17 MPa</code>
-            <div className="fml-note">방수압 최솟값 0.17 MPa = 17 m</div>
+            <div className="fml-note">노즐선단 0.17 MPa 이상 ≒ 17 m (NFPC 102 제5조①3호) · 0.7 MPa 초과 시 감압장치(단서)</div>
           </div>
         </div>
         <div className="fml-card">
@@ -585,18 +677,18 @@ function FormulaModal({onClose}){
           <div className="fml-note">
             40mm 아마호스: 26 m/100m &nbsp;|&nbsp; 40mm 고무내장: 12 m/100m<br/>
             50mm 아마호스: 7 m/100m &nbsp;|&nbsp; 50mm 고무내장: 3 m/100m<br/>
-            25mm 호스릴: 고정 14 m (호스길이 무관)
+            25mm 호스릴: 고정 14 m (호스길이 무관) — 손실률은 MANMIN 참고값
           </div>
         </div>
         <div className="fml-card">
           <div className="fml-card-ttl">F — 배관 마찰손실 h₂ (Hazen-Williams)</div>
           <code className="fml-eq red">h = (10.67 × Q¹·⁸⁵²) ÷ (C¹·⁸⁵² × D⁴·⁸⁷) × L</code>
-          <div className="fml-note">유속 제한 §2.3.5: 펌프 토출 측 주배관 ≤ 4 m/s</div>
+          <div className="fml-note">마찰계수 = m/100 m 표시(v5.1.0 정정) | F₀ 공통 배관 + F 분기 후 배관 | 유속: 펌프 토출 측 주배관 4 m/s 이하 (NFTC 102 2.3.5)</div>
         </div>
         <div className="fml-hi red">
           <div className="fml-card-ttl" style={{color:"#b91c1c"}}>J — 전양정 최종값</div>
-          <code className="fml-eq hi">J = ⌈(E + F + G + H₄) × 1.1⌉ [m] — 올림 적용</code>
-          <div className="fml-note">안전율 10% 가산 — §2.3.3.1</div>
+          <code className="fml-eq hi">J = ⌈(E + F₀ + F + G + H₄) × 1.1⌉ [m] — 올림 적용</code>
+          <div className="fml-note">안전율 10 % · 올림 = MANMIN 참고값 (기준에 펌프 양정식 없음)</div>
         </div>
       </div>
     </>
@@ -610,12 +702,12 @@ function FormulaModal({onClose}){
         <div className="fml-hi grn">
           <div className="fml-card-ttl" style={{color:"#15803d"}}>D — 수원 산정</div>
           <code className="fml-eq grn">수원(m³) = N개 × 7 m³</code>
-          <div className="fml-note">최대 N = 2개 동시사용 한도 | 1개 → 7 m³ / 2개 → 14 m³</div>
+          <div className="fml-note">N = 설치개수(2개 이상이면 2개) | 1개 → 7 m³ / 2개 → 14 m³ | 옥상수조 규정 없음</div>
         </div>
       </div>
 
       <div className="fml-sec">
-        <div className="fml-sec-ttl" style={{color:"#15803d"}}>📏 전양정 구성 (NFPC 109 제5조③)</div>
+        <div className="fml-sec-ttl" style={{color:"#15803d"}}>📏 전양정 구성 (펌프 방식 — MANMIN 적용식)</div>
         <div className="fml-g2">
           <div className="fml-card">
             <div className="fml-card-ttl">E — 실양정 h₁</div>
@@ -625,26 +717,26 @@ function FormulaModal({onClose}){
           <div className="fml-card">
             <div className="fml-card-ttl">H₄ — 노즐 환산수두</div>
             <code className="fml-eq grn">H₄ = 25 m (고정) ← 0.25 MPa</code>
-            <div className="fml-note">방수압 최솟값 0.25 MPa = 25 m</div>
+            <div className="fml-note">노즐선단 0.25 MPa 이상 ≒ 25 m (NFPC 109 제5조①3호) · 0.7 MPa 초과 시 감압장치(단서)</div>
           </div>
         </div>
         <div className="fml-card">
-          <div className="fml-card-ttl">G — 호스 마찰손실 h₃ (65mm 전용, NFPC 109 제6조②)</div>
+          <div className="fml-card-ttl">G — 호스 마찰손실 h₃ (구경 65 mm — NFPC 109 제6조② · NFTC 109 2.3.2)</div>
           <code className="fml-eq grn">G = 마찰계수(m/100m) × 호스길이(m) ÷ 100</code>
           <div className="fml-note">
-            65mm 마(아마)호스: 8 m/100m &nbsp;|&nbsp; 65mm 고무내장호스: 4 m/100m<br/>
-            방사량: 350 ℓ/min 이상 | 동시사용: 최대 2개
+            65mm 마(아마)호스: 8 m/100m &nbsp;|&nbsp; 65mm 고무내장호스: 4 m/100m — 손실률은 MANMIN 참고값<br/>
+            방수량 350 ℓ/min 이상(계산 350) | 동시사용 2개 한도 — NFPC 109 제5조①3호
           </div>
         </div>
         <div className="fml-card">
           <div className="fml-card-ttl">F — 배관 마찰손실 h₂ (Hazen-Williams)</div>
           <code className="fml-eq grn">h = (10.67 × Q¹·⁸⁵²) ÷ (C¹·⁸⁵² × D⁴·⁸⁷) × L</code>
-          <div className="fml-note">C값: KS D3507·3562 = 120 / STS·CPVC = 150</div>
+          <div className="fml-note">C값: KS D3507·3562 = 120 / STS·CPVC = 150 (MANMIN 참고값) | 유속 규정 없음 → NFTC 102 2.3.5(4 m/s) 준용 참고</div>
         </div>
         <div className="fml-hi grn">
           <div className="fml-card-ttl" style={{color:"#15803d"}}>J — 전양정 최종값</div>
-          <code className="fml-eq hi">J = ⌈(E + F + G + H₄) × 1.1⌉ [m] — 올림 적용</code>
-          <div className="fml-note">안전율 10% 가산 후 올림 처리 — NFPC 109 제5조③</div>
+          <code className="fml-eq hi">J = ⌈(E + F₀ + F + G + H₄) × 1.1⌉ [m] — 올림 적용</code>
+          <div className="fml-note">안전율 10 % · 올림 = MANMIN 참고값 (고가수조 식 H = h₁ + h₂ + 25 — NFTC 109 2.2.2.1 참고)</div>
         </div>
       </div>
     </>
@@ -659,18 +751,18 @@ function FormulaModal({onClose}){
           <div className="fml-hi">
             <div className="fml-card-ttl" style={{color:"#0e7490"}}>① 토출량 — 합산</div>
             <code className="fml-eq">Q = Q옥내 + Q옥외 [ℓ/min]</code>
-            <div className="fml-note">두 설비 유량 단순 합산</div>
+            <div className="fml-note">각 소화설비 토출량을 합한 양 이상 — NFPC 102 제12조② · NFPC 109 제11조② · NFTC 109 2.8.2</div>
           </div>
           <div className="fml-hi">
             <div className="fml-card-ttl" style={{color:"#0e7490"}}>② 전양정 — MAX 채택</div>
             <code className="fml-eq">H = max(J옥내, J옥외) [m]</code>
-            <div className="fml-note">더 높은 양정 기준 설비 채택</div>
+            <div className="fml-note">공통 배관 F₀를 각 설비 양정에 더한 뒤 큰 값 채택(MANMIN 적용) — 각 설비 성능에 지장이 없을 것(NFTC 102 2.2.1.5 · NFTC 109 2.2.1.4 단서)</div>
           </div>
         </div>
         <div className="fml-hi">
           <div className="fml-card-ttl" style={{color:"#0e7490"}}>③ 수원 — 합산</div>
-          <code className="fml-eq">D = D옥내 + D옥외 [m³]</code>
-          <div className="fml-note">두 설비 수원 단순 합산</div>
+          <code className="fml-eq">D = D옥내 + D옥외 [m³] · 옥상수조 R = D옥내 ÷ 3</code>
+          <div className="fml-note">각 소화설비 저수량을 합한 양 이상 — NFPC 102 제12조① · NFPC 109 제11조① · NFTC 109 2.8.1<br/>NFTC 단서(최대의 것 이상)는 고정식 소화설비가 2 이상인 경우 — 옥내 · 옥외소화전은 고정식이 아니어서 해당 없음</div>
         </div>
       </div>
 
@@ -682,8 +774,8 @@ function FormulaModal({onClose}){
           <div className="fml-note">
             0.163: 단위환산 상수 (ρ·g ÷ 60,000)<br/>
             L = 합산 토출량(ℓ/min) ÷ 1,000 → m³/min<br/>
-            K: 전달계수 — 전동기 직결 1.1 / 전동기 이외 원동기 1.15<br/>
-            η: 펌프 효율 (40A=0.40 / 65A=0.55 / 100A=0.60 / 150A=0.70)
+            K: 전달계수 — 전동기 직결 1.1 / 전동기 이외 원동기 1.15 (MANMIN 참고값)<br/>
+            η: 펌프 효율 직접 입력 — 참고 40A 40 % · 50A 45 % · 65A 55 % · 80A 55 % · 100A 60 % · 125A 65 % · 150A 70 % (MANMIN 참고값)
           </div>
         </div>
         <div className="fml-hi">
@@ -697,12 +789,14 @@ function FormulaModal({onClose}){
         <div className="fml-sec-ttl" style={{color:"#0e7490"}}>📋 적용 법령</div>
         <div className="fml-card">
           <div className="fml-note" style={{fontSize:11,lineHeight:2.1}}>
-            ① NFPC/NFTC 102 (옥내소화전) [시행 2026.3.1.]<br/>
-            &nbsp;&nbsp;- 수원: N×130ℓ/min×20min÷1,000 | 방수압 0.17~0.7 MPa | 방수량 ≥ 130 ℓ/min<br/>
-            ② NFPC 109 (옥외소화전) [시행 2026.3.1.]<br/>
-            &nbsp;&nbsp;- 수원: N×7 m³ (최대 2개) | 방수압 ≥ 0.25 MPa | 방수량 ≥ 350 ℓ/min<br/>
-            ③ 겸용 원칙: 유량 합산 / 양정 MAX / 수원 합산<br/>
-            ④ 배관 마찰손실: Hazen-Williams 공식 적용
+            ① NFPC 102 소방청고시 제2025-25호(2026. 3. 1. 시행) · NFTC 102 국립소방연구원공고 제2026-34호(2026. 7. 1. 시행)<br/>
+            &nbsp;&nbsp;- 수원 N × 2.6 m³(제4조①) · 옥상수조 1/3(제4조②) | 0.17 MPa · 130 ℓ/min 이상 · 0.7 MPa 초과 감압(제5조①3호)<br/>
+            ② NFPC 109 소방청고시 제2025-28호 · NFTC 109 국립소방연구원공고 제2026-9호(2026. 3. 1. 시행)<br/>
+            &nbsp;&nbsp;- 수원 N × 7 m³(제4조①, 2개 한도) | 0.25 MPa · 350 ℓ/min 이상 · 0.7 MPa 초과 감압(제5조①3호) | 호스 65 mm(제6조②)<br/>
+            ③ 겸용: 수원 · 토출량 합산(NFPC 102 제12조 · NFPC 109 제11조) / 양정 MAX(MANMIN 적용)<br/>
+            ④ 배관 1.2 MPa 이상: KS D 3562 · 3583(NFTC 102 2.3.1.2 · NFTC 109 2.3.3.2) — NFPC 109 제6조③은 KS D 3562 · 5301<br/>
+            ⑤ 고층건축물: NFTC 604 2.1.1(5개 × 5.2 · 7.8 m³) · 2.1.3(옥내소화전 펌프 전용 · 예비펌프)<br/>
+            ⑥ 배관 마찰손실: Hazen-Williams 공식 (안전율 · 관부속 · K · η · C = MANMIN 참고값)
           </div>
         </div>
       </div>
@@ -717,7 +811,7 @@ function FormulaModal({onClose}){
         <div className="fml-hi">
           <div className="fml-card-ttl" style={{color:"#0e7490"}}>기본 공식</div>
           <code className="fml-eq hi">상당직관(m) = Σ [ 수량 × 관경별 환산값 ]</code>
-          <div className="fml-note">나사 접합 기준 (KS B 6721 준용)</div>
+          <div className="fml-note">나사 접합 기준 — 환산값은 MANMIN 참고값</div>
         </div>
         <div className="fml-card">
           <div className="fml-card-ttl">관부속 대체 적용</div>
@@ -789,7 +883,7 @@ Auto·Glove V/V → Ball V/V</code>
                 📐 계산식 안내
               </div>
               <div style={{fontSize:10,opacity:0.65,fontWeight:500}}>
-                NFTC 102 옥내소화전 + NFPC 109 옥외소화전 겸용 · Ver-5.0
+                NFPC · NFTC 102 옥내소화전 + NFPC · NFTC 109 옥외소화전 겸용 · Ver-5.1
               </div>
             </div>
             <button className="fml-close" onClick={onClose} aria-label="닫기">✕</button>
@@ -817,7 +911,7 @@ Auto·Glove V/V → Ball V/V</code>
                 <span style={{fontSize:20}}>🚒</span> 겸용 펌프 용량 계산서 이용방법
               </div>
               <div style={{fontSize:10.5,color:"rgba(255,255,255,.75)",lineHeight:1.7}}>
-                옥내소화전(NFPC/NFTC 102) + 옥외소화전(NFPC 109) · MANMIN Ver-5.0<br/>
+                옥내소화전(NFPC · NFTC 102) + 옥외소화전(NFPC · NFTC 109) · MANMIN Ver-5.1<br/>
                 아래 순서대로 입력하면 겸용 펌프 수원·양정·동력이 자동으로 산출됩니다.
               </div>
             </div>
@@ -829,7 +923,7 @@ Auto·Glove V/V → Ball V/V</code>
                 <div style={{fontSize:12,fontWeight:900,color:"#1e3a5f",marginBottom:5}}>📋 프로젝트 기본 정보 입력</div>
                 <div style={{fontSize:10.5,color:"#374151",lineHeight:1.85}}>
                   ① <strong>공사명·설계자·날짜</strong>를 입력합니다 — 출력 계산서 상단에 표기됩니다.<br/>
-                  ② 상단 탭에서 <strong>「⚙️ 조건 입력」</strong>을 선택하여 시스템 기본 조건을 설정합니다.<br/>
+                  ② 상단 탭 <strong>「① 옥내소화전 입력」</strong>에서 건축물 규모와 옥내소화전 조건부터 설정합니다.<br/>
                   ③ 모든 입력값은 실시간으로 계산서에 자동 반영됩니다.
                 </div>
               </div>
@@ -839,12 +933,12 @@ Auto·Glove V/V → Ball V/V</code>
             <div style={{display:"flex",gap:11,alignItems:"flex-start",background:"#fef2f2",border:"1.5px solid #fecaca",borderLeft:"4px solid #b91c1c",borderRadius:10,padding:"13px 14px",marginBottom:9}}>
               <div style={{minWidth:30,height:30,background:"linear-gradient(135deg,#b91c1c,#7f1d1d)",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:"#fff",flexShrink:0,boxShadow:"0 2px 8px rgba(185,28,28,.4)"}}>2</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:900,color:"#b91c1c",marginBottom:5}}>🔴 옥내소화전 조건 설정</div>
+                <div style={{fontSize:12,fontWeight:900,color:"#b91c1c",marginBottom:5}}>🔴 「① 옥내소화전 입력」</div>
                 <div style={{fontSize:10.5,color:"#374151",lineHeight:1.85}}>
-                  ① <strong>설치 소화전 수</strong>를 입력합니다 — 최대 2개 동시 사용 기준이 자동 적용됩니다.<br/>
-                  ② <strong>실양정(m)·호스 길이·호스 종류</strong>를 선택하면 마찰손실이 자동 계산됩니다.<br/>
-                  ③ 배관 세그먼트를 추가하여 관경·길이·관부속 수량을 입력합니다.<br/>
-                  ④ 수원(N×130×20÷1,000 m³)과 토출량(N×130 ℓ/min)이 자동 산출됩니다.
+                  ① <strong>건축물 규모</strong>(일반 · 30층 이상 · 50층 이상)와 <strong>설치개수가 가장 많은 층의 소화전 수</strong>를 입력합니다 — 2개(고층 5개) 한도가 자동 적용됩니다.<br/>
+                  ② <strong>실양정 · 최저층 방수구 높이 · 호스 길이 · 호스 종류</strong>를 선택합니다 — 최저층 높이는 0.7 MPa 감압 판정에 씁니다.<br/>
+                  ③ 공통 배관 분기 후 옥내소화전 배관 구간을 입력합니다.<br/>
+                  ④ 수원(N × 2.6 m³)과 토출량(N × 130 ℓ/min)이 자동 산출됩니다.
                 </div>
               </div>
             </div>
@@ -853,11 +947,11 @@ Auto·Glove V/V → Ball V/V</code>
             <div style={{display:"flex",gap:11,alignItems:"flex-start",background:"#f0fdf4",border:"1.5px solid #bbf7d0",borderLeft:"4px solid #15803d",borderRadius:10,padding:"13px 14px",marginBottom:9}}>
               <div style={{minWidth:30,height:30,background:"linear-gradient(135deg,#15803d,#14532d)",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:"#fff",flexShrink:0,boxShadow:"0 2px 8px rgba(21,128,61,.4)"}}>3</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:900,color:"#15803d",marginBottom:5}}>🟢 옥외소화전 조건 설정</div>
+                <div style={{fontSize:12,fontWeight:900,color:"#15803d",marginBottom:5}}>🟢 「② 옥외소화전 입력」</div>
                 <div style={{fontSize:10.5,color:"#374151",lineHeight:1.85}}>
-                  ① <strong>설치 소화전 수</strong>를 입력합니다 — 최대 2개 동시 사용 기준이 자동 적용됩니다.<br/>
-                  ② <strong>실양정(m)·호스 길이·호스 종류</strong>(65mm 아마/고무내장)를 선택합니다.<br/>
-                  ③ 배관 세그먼트를 추가하여 마찰손실을 산정합니다.<br/>
+                  ① <strong>옥외소화전 설치개수</strong>를 입력합니다 — 2개 이상이면 2개 기준이 자동 적용됩니다.<br/>
+                  ② <strong>실양정 · 최저 호스접결구 높이 · 호스 길이 · 호스 종류</strong>(65 mm 아마 / 고무내장)를 선택합니다.<br/>
+                  ③ 공통 배관 분기 후 옥외소화전 배관 구간을 입력합니다.<br/>
                   ④ 수원(N×7 m³)과 토출량(N×350 ℓ/min)이 자동 산출됩니다.
                 </div>
               </div>
@@ -867,11 +961,11 @@ Auto·Glove V/V → Ball V/V</code>
             <div style={{display:"flex",gap:11,alignItems:"flex-start",background:"#eff6ff",border:"1.5px solid #bfdbfe",borderLeft:"4px solid #1d4ed8",borderRadius:10,padding:"13px 14px",marginBottom:9}}>
               <div style={{minWidth:30,height:30,background:"linear-gradient(135deg,#1d4ed8,#1e3a8a)",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900,color:"#fff",flexShrink:0,boxShadow:"0 2px 8px rgba(29,78,216,.4)"}}>4</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,fontWeight:900,color:"#1d4ed8",marginBottom:5}}>🔵 겸용 펌프 결과 확인</div>
+                <div style={{fontSize:12,fontWeight:900,color:"#1d4ed8",marginBottom:5}}>🔵 「③ 겸용펌프 결과」</div>
                 <div style={{fontSize:10.5,color:"#374151",lineHeight:1.85}}>
-                  ① 겸용 토출량(합산)·전양정(최댓값)·수원(합산)이 자동 산출됩니다.<br/>
-                  ② <strong>펌프 관경·전달 방식</strong>을 선택하면 전동기 출력(kW→HP)이 자동 계산됩니다.<br/>
-                  ③ 두 설비 각각의 전양정 중 더 큰 값이 겸용 펌프 전양정으로 자동 채택됩니다.
+                  ① <strong>공통 배관</strong>(펌프 토출 측 · 두 설비 합산 유량)을 입력하면 그 손실이 두 설비 양정에 모두 더해지고 4 m/s(NFTC 102 2.3.5)를 판정합니다.<br/>
+                  ② <strong>펌프 구경 · 효율 · 전달 방식 · 옥상수조 면제 여부</strong>를 고르면 동력(kW → HP)과 총 저수량이 산출됩니다.<br/>
+                  ③ 토출량 · 수원은 합산, 전양정은 두 설비 중 큰 값 — 배관 1.2 MPa · 노즐 0.7 MPa 판정이 함께 표시됩니다.
                 </div>
               </div>
             </div>
@@ -882,9 +976,9 @@ Auto·Glove V/V → Ball V/V</code>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:12,fontWeight:900,color:"#334155",marginBottom:5}}>🖨️ 결과 확인 및 출력</div>
                 <div style={{fontSize:10.5,color:"#374151",lineHeight:1.85}}>
-                  ① <strong>「📄 계산서」 탭</strong>에서 옥내·옥외·겸용 펌프 최종 결과를 확인합니다.<br/>
-                  ② 상단 <strong>🖨️ 인쇄 버튼</strong>을 클릭하면 소방 계산서 양식으로 A4 출력·PDF 저장됩니다.<br/>
-                  ③ <strong>「📱 모바일」 탭</strong>에서 JPG로 저장하거나 공유할 수 있습니다.<br/>
+                  ① <strong>「④ 계산서 출력」 탭</strong>에서 옥내 · 옥외 · 공통 배관 · 겸용 펌프 결과를 A4로 확인합니다.<br/>
+                  ② 계산서 위 <strong>🖨️ 인쇄 · PDF</strong> 버튼으로 A4 출력 · PDF 저장합니다.<br/>
+                  ③ 같은 위치의 <strong>🖼️ JPG 저장</strong> 버튼으로 A4 쪽별 그림을 저장합니다 · 탭 막대 <strong>📘 매뉴얼</strong>에서 사용자 매뉴얼을 엽니다.<br/>
                   ④ PWA 설치: 우측 하단 설치 버튼 또는 iOS Safari → 공유 → 홈 화면에 추가.
                 </div>
               </div>
@@ -903,11 +997,11 @@ Auto·Glove V/V → Ball V/V</code>
               </div>
               <div className="fml-card" style={{borderLeft:"3px solid #b91c1c"}}>
                 <div className="fml-card-ttl" style={{color:"#b91c1c"}}>🔩 배관 세그먼트 독립 입력</div>
-                <div className="fml-note">옥내·옥외 각각 별도 배관 세그먼트를 등록합니다. 관경·길이·관부속 입력 시 Hazen-Williams로 마찰손실이 자동 계산됩니다.</div>
+                <div className="fml-note">펌프 토출 측 공통 배관(합산 유량)은 ③ 탭에서, 분기 후 배관은 설비별 탭에서 입력합니다. 공통 배관 손실은 두 설비 양정에 모두 더해집니다.</div>
               </div>
               <div className="fml-card" style={{borderLeft:"3px solid #15803d"}}>
                 <div className="fml-card-ttl" style={{color:"#15803d"}}>🔵 겸용 자동 결합</div>
-                <div className="fml-note">겸용 펌프 결과는 별도 입력 없이 자동 산출됩니다. 토출량 합산·전양정 최댓값·수원 합산·전동기 출력이 한 번에 계산됩니다.</div>
+                <div className="fml-note">토출량 · 수원 합산, 전양정 최댓값, 옥상수조(옥내 ÷ 3), 전동기 출력, 1.2 MPa · 0.7 MPa 판정이 한 번에 계산됩니다.</div>
               </div>
             </div>
 
@@ -915,10 +1009,10 @@ Auto·Glove V/V → Ball V/V</code>
             <div style={{border:"1.5px solid #bfdbfe",background:"#eff6ff",borderRadius:10,padding:"12px 14px",marginTop:4}}>
               <div style={{fontSize:11,fontWeight:800,color:"#1e3a5f",marginBottom:6}}>📌 주요 법적 근거</div>
               <div className="fml-note" style={{fontSize:10.5,lineHeight:2.1}}>
-                <strong>NFPC/NFTC 102</strong> — 옥내소화전설비의 화재안전기준 [시행 2026.3.1.] (방수량 130 ℓ/min, 방수압 0.17 MPa)<br/>
-                <strong>NFPC 109</strong> — 옥외소화전설비의 화재안전성능기준 [시행 2026.3.1.] (방수량 350 ℓ/min, 방수압 0.25 MPa)<br/>
-                <strong>겸용 원칙</strong> — 유량 합산 / 양정 최댓값 채택 / 수원 합산<br/>
-                <strong>Hazen-Williams 공식</strong> — 배관 마찰손실 (C값: 백관·흑관 120, STS·CPVC 150)
+                <strong>NFPC 102</strong> 고시 제2025-25호 · <strong>NFTC 102</strong> 공고 제2026-34호(2026. 7. 1. 시행) — 130 ℓ/min · 0.17 MPa · 수원 N × 2.6 m³ · 옥상수조 1/3<br/>
+                <strong>NFPC 109</strong> 고시 제2025-28호 · <strong>NFTC 109</strong> 공고 제2026-9호(2026. 3. 1. 시행) — 350 ℓ/min · 0.25 MPa · 수원 N × 7 m³<br/>
+                <strong>겸용</strong> — 수원 · 토출량 합산(NFPC 102 제12조 · NFPC 109 제11조) / 양정 최댓값(MANMIN 적용)<br/>
+                <strong>Hazen-Williams 공식</strong> — 배관 마찰손실 (C값: 백관 · 흑관 120, STS · CPVC 150 — MANMIN 참고값)
               </div>
             </div>
           </>}
@@ -943,7 +1037,7 @@ function App(){
   const [proj,setProj]=useState({name:"만민 건축사 신사옥 신축공사 현장",designer:"김만민",date:new Date().toISOString().slice(0,10)});
 
   /* 옥내소화전 상태 */
-  const [hSys,setHSys]=useState({hydrants:2,actualHead:78,hoseLen:30,hoseType:2,pipeType:"SCH10"});
+  const [hSys,setHSys]=useState({hydrants:2,actualHead:78,hoseLen:30,hoseType:2,pipeType:"SCH10",lowHead:1.5});
   const ssH=(k,v)=>setHSys(p=>({...p,[k]:v}));
   const [hSegs,setHSegs]=useState([
     {flow:260,dia:100,len:30,e90:3,e45:2,teeB:1,teeS:12,gate:2,ball:0,angle:2,check:1},
@@ -952,7 +1046,7 @@ function App(){
   ]);
 
   /* 옥외소화전 상태 */
-  const [oSys,setOSys]=useState({hydrants:2,actualHead:10,hoseLen:15,hoseType:2,pipeType:"SCH10"});
+  const [oSys,setOSys]=useState({hydrants:2,actualHead:10,hoseLen:15,hoseType:2,pipeType:"SCH10",lowHead:5});
   const ssO=(k,v)=>setOSys(p=>({...p,[k]:v}));
   const [oSegs,setOSegs]=useState([
     {flow:700,dia:100,len:30,e90:2,e45:1,teeB:1,teeS:6,gate:2,ball:0,angle:1,check:1},
@@ -961,8 +1055,17 @@ function App(){
   ]);
 
   /* 겸용 펌프 파라미터 */
-  const [cPump,setCPump]=useState({pumpDia:125,pumpEff:65,transType:1});
+  const [cPump,setCPump]=useState({pumpDia:125,pumpEff:65,transType:1,roofEx:0,pipeType:"SCH10"});
   const ssCp=(k,v)=>setCPump(p=>({...p,[k]:v}));
+  /* v5.1.0 — 공통 배관(펌프 토출 측 · 두 설비 합산 유량) */
+  const [cSegs,setCSegs]=useState([
+    {flow:960,dia:125,len:10,e90:2,e45:0,teeB:1,teeS:0,gate:1,ball:0,angle:0,check:1},
+  ]);
+  /* v5.1.0 — 건축물 규모 1 일반 · 2 고층(30층 이상) · 3 50층 이상 (NFTC 604) */
+  const [buildingFloor,setBuildingFloor]=useState(1);
+  /* v5.1.0 — 매뉴얼 캡처 창구 */
+  window.__mmCio={setHSys,setHSegs,setOSys,setOSegs,setCPump,setCSegs,setBuildingFloor,setProj,setTab,setShowFormula,
+    get:()=>({hSys,hSegs,oSys,oSegs,cPump,cSegs,buildingFloor,proj})};
 
   const[installPrompt,setInstallPrompt]=useState(null);
   const[showInstallBanner,setShowInstallBanner]=useState(false);
@@ -1006,63 +1109,11 @@ function App(){
     const t=setTimeout(scaleRpt,60);
     window.addEventListener('resize',scaleRpt);
     return()=>{clearTimeout(t);window.removeEventListener('resize',scaleRpt);};
-  },[tab,hSegs,oSegs,hSys,oSys,cPump,proj]);
+  },[tab,hSegs,oSegs,cSegs,hSys,oSys,cPump,proj,buildingFloor]);
 
-  /* ── 옥내소화전 계산 ── */
-  const H=useMemo(()=>{
-    const A=Math.min(H_MAX_N,Math.max(1,hSys.hydrants|0));
-    const Clpm=A*H_FLOW_PER;
-    const D=Clpm*H_WATER_T/1000;
-    let F=0;
-    hSegs.forEach(s=>{
-      const eq=FITTING_EQ[s.dia]||FITTING_EQ[100];
-      const fl=s.e90*eq[0]+s.e45*eq[1]+s.teeB*eq[2]+s.teeS*eq[3]+s.gate*eq[4]+s.ball*eq[5]+s.angle*eq[6]+s.check*eq[7];
-      const tl=(s.len||0)+fl;
-      F+=calcFriction(s.flow,s.dia,hSys.pipeType)*tl/100;
-    });
-    const hose=H_HOSE_TYPES[hSys.hoseType]||H_HOSE_TYPES[2];
-    const G=hose.fixed!=null?hose.fixed:hose.rate*hSys.hoseLen/100;
-    const E=+hSys.actualHead;
-    const sub=E+F+G+H_NOZZLE;
-    const I=sub*0.1;
-    const J=Math.ceil(sub+I);
-    return {A,Clpm,D,E,F,G,I,J,hose};
-  },[hSys,hSegs]);
-
-  /* ── 옥외소화전 계산 ── */
-  const O=useMemo(()=>{
-    const A=Math.min(O_MAX_N,Math.max(1,oSys.hydrants|0));
-    const Clpm=A*O_FLOW_PER;
-    const D=A*O_WATER_PER;
-    let F=0;
-    oSegs.forEach(s=>{
-      const eq=FITTING_EQ[s.dia]||FITTING_EQ[100];
-      const fl=s.e90*eq[0]+s.e45*eq[1]+s.teeB*eq[2]+s.teeS*eq[3]+s.gate*eq[4]+s.ball*eq[5]+s.angle*eq[6]+s.check*eq[7];
-      const tl=(s.len||0)+fl;
-      F+=calcFriction(s.flow,s.dia,oSys.pipeType)*tl/100;
-    });
-    const hose=O_HOSE_TYPES[oSys.hoseType]||O_HOSE_TYPES[2];
-    const G=hose.rate*oSys.hoseLen/100;
-    const E=+oSys.actualHead;
-    const sub=E+F+G+O_NOZZLE;
-    const I=sub*0.1;
-    const J=Math.ceil(sub+I);
-    return {A,Clpm,D,E,F,G,I,J,hose};
-  },[oSys,oSegs]);
-
-  /* ── 겸용 펌프 계산 ── */
-  const CP=useMemo(()=>{
-    const Clpm=H.Clpm+O.Clpm;      // 유량 합산
-    const J=Math.max(H.J,O.J);     // 전양정: 더 높은 쪽 (MAX)
-    const D=H.D+O.D;               // 수원 합산
-    const M=Clpm/1000;
-    const N=cPump.pumpEff/100;
-    const K=(TRANS_TYPE[cPump.transType]&&TRANS_TYPE[cPump.transType].k)||1.1;
-    const Pkw=0.163*M*J*K/N;
-    const Php=nextHP(Pkw);
-    const hHead=H.J>=O.J?"옥내소화전":"옥외소화전";
-    return {Clpm,J,D,M,N,K,Pkw,Php,hHead};
-  },[H,O,cPump]);
+  /* ── v5.1.0 — 계산은 cio-engine 단일 함수 ── */
+  const X=useMemo(()=>cioCalc(hSys,hSegs,oSys,oSegs,cPump,cSegs,buildingFloor),[hSys,hSegs,oSys,oSegs,cPump,cSegs,buildingFloor]);
+  const H=X.H, O=X.O, CP=X.C;
 
   const TABS=["① 옥내소화전 입력","② 옥외소화전 입력","③ 겸용펌프 결과","④ 계산서 출력"];
   const TAB_COLORS=["#b91c1c","#15803d","#1d4ed8","#334155"];
@@ -1085,14 +1136,14 @@ function App(){
               겸용 펌프 용량 계산서
             </h1>
             <div style={{fontSize:11,marginTop:8,opacity:0.85,letterSpacing:"0.02em"}}>
-              옥내소화전(NFPC/NFTC 102) + 옥외소화전(NFPC 109) 겸용 &nbsp;
+              옥내소화전(NFPC · NFTC 102) + 옥외소화전(NFPC · NFTC 109) 겸용 &nbsp;
               <span className="hdr-manmin" style={{fontFamily:"'Orbitron',sans-serif",fontWeight:900,fontSize:12,color:"#93c5fd",letterSpacing:"0.08em",textShadow:"0 0 8px rgba(147,197,253,0.6)"}}>
-                MANMIN · Ver-5.0
+                MANMIN · Ver-5.1
               </span>
             </div>
           </div>
           <div className="hdr-right-hide" style={{textAlign:"right",fontSize:11,opacity:0.75}}>
-            <div style={{fontWeight:700,fontSize:13}}>NFTC 102 + NFPC 109</div>
+            <div style={{fontWeight:700,fontSize:13}}>NFTC 102 + NFTC 109</div>
             <div>옥내소화전 + 옥외소화전 겸용</div>
           </div>
         </div>
@@ -1108,13 +1159,16 @@ function App(){
               {t}
             </button>
           ))}
+          <a className="tb-manual" href="https://manminkim-eng.github.io/combo-indoor-outdoor-calc/manual/" target="_blank" rel="noopener"
+             onClick={e=>{if(navigator.onLine===false){e.preventDefault();const t=document.createElement('div');t.textContent='매뉴얼은 인터넷 연결 시 열립니다';t.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:99999';document.body.appendChild(t);setTimeout(()=>t.remove(),2200);}}}
+             style={{marginLeft:"auto",padding:"11px 16px",fontWeight:700,fontSize:13,color:"white",textDecoration:"none",borderBottom:"3px solid transparent",flexShrink:0,fontFamily:"'Noto Sans KR','Noto Sans KR Local',sans-serif"}}>📘 매뉴얼</a>
         </div>
       </div>
     </div>
 
     {/* ── 요약 바 ── */}
     <div className="no-print" style={{background:"#0f172a",padding:"10px 0"}}>
-      <div style={{maxWidth:1300,margin:"0 auto",padding:"0 24px",display:"flex",flexWrap:"wrap",gap:14}}>
+      <div className="sum-bar" style={{maxWidth:1300,margin:"0 auto",padding:"0 24px",display:"flex",flexWrap:"wrap",gap:14}}>
         {[
           ["옥내소화전 유량",`${H.Clpm} ℓ/min`],
           ["옥외소화전 유량",`${O.Clpm} ℓ/min`],
@@ -1122,6 +1176,7 @@ function App(){
           ["옥내소화전 전양정",`${H.J} m`],
           ["옥외소화전 전양정",`${O.J} m`],
           ["겸용 채택 전양정",`${CP.J} m (${CP.hHead})`],
+          ["총 저수량",`${f3(CP.Dt)} m³`],
           ["겸용 선정 출력",`${CP.Php} HP`],
         ].map(([l,v])=>(
           <span key={l} style={{fontSize:12,color:"#94a3b8"}}>
@@ -1143,14 +1198,26 @@ function App(){
               <div><LabelEl>작성일</LabelEl><input type="date" value={proj.date} onChange={e=>setProj(p=>({...p,date:e.target.value}))} style={{width:"100%",padding:"8px 12px",borderRadius:8,border:BD,fontSize:13,outline:"none"}}/></div>
             </div>
           </Box>
-          <Box title="Ⅰ. 옥내소화전 시스템 파라미터 (NFTC 102)" color="#b91c1c">
+          <Box title="Ⅰ. 옥내소화전 시스템 파라미터 (NFPC · NFTC 102)" color="#b91c1c">
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
               <div>
-                <LabelEl>A. 최대구역 소화전 수</LabelEl>
-                <InpNum val={hSys.hydrants} min={1} max={2} onChange={v=>ssH("hydrants",v)} unit="개 (최대 2)"/>
-                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>개당 방사량 130 ℓ/min 고정</div>
+                <LabelEl>건축물 규모 (NFTC 604)</LabelEl>
+                <Sel val={buildingFloor} onChange={v=>setBuildingFloor(+v)}>
+                  <option value={1}>일반 (30층 미만 · 높이 120 m 미만)</option>
+                  <option value={2}>고층건축물 (30층 이상 · 50층 미만)</option>
+                  <option value={3}>50층 이상 (초고층)</option>
+                </Sel>
+                {CP.hiRise&&<div className="mm-hirise" style={{marginTop:6,fontSize:10.5,color:"#b91c1c",fontWeight:700,padding:"6px 10px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:6}}>⚠ 고층건축물은 옥내소화전설비의 가압송수장치(펌프)를 전용으로 설치하고 예비펌프를 추가해야 합니다(NFTC 604 2.1.3) — 겸용 펌프 불가 · 이 결과는 참고 계산</div>}
               </div>
-              <div><LabelEl>F. 실양정 (h₁)</LabelEl><InpNum val={hSys.actualHead} onChange={v=>ssH("actualHead",v)} unit="m"/></div>
+              <div>
+                <LabelEl>A. 설치개수가 가장 많은 층의 소화전 수</LabelEl>
+                <InpNum val={hSys.hydrants} min={1} max={H.hMaxCount} onChange={v=>ssH("hydrants",v)} unit={`개 (최대 ${H.hMaxCount})`}/>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>130 ℓ/min 이상(계산 130) · {buildingFloor===1?"2개 한도 — NFPC 102 제4조① · 제5조①4호":"5개 한도 — NFTC 604 2.1.1"}</div>
+              </div>
+              <div><LabelEl>F. 실양정 (h₁)</LabelEl><InpNum val={hSys.actualHead} onChange={v=>ssH("actualHead",v)} unit="m"/>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>펌프 ↔ 최고층 방수구 높이차</div></div>
+              <div><LabelEl>F-1. 최저층 방수구 높이 (펌프 기준)</LabelEl><InpNum val={hSys.lowHead} onChange={v=>ssH("lowHead",v)} unit="m"/>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>0.7 MPa 감압 판정용(NFPC 102 제5조①3호 단서)</div></div>
               <div><LabelEl>G. 호스 길이</LabelEl>
                 <Sel val={hSys.hoseLen} onChange={v=>ssH("hoseLen",parseInt(v))}>
                   <option value={15}>15 m</option><option value={30}>30 m</option>
@@ -1162,38 +1229,43 @@ function App(){
                     <option key={k} value={k}>{v.label} ({v.fixed!=null?`고정 ${v.fixed}m`:`${v.rate} m/100m`})</option>
                   ))}
                 </Sel>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>손실률 = MANMIN 참고값</div>
               </div>
               <div><LabelEl>배관 종류 (C값)</LabelEl>
                 <Sel val={hSys.pipeType} onChange={v=>ssH("pipeType",v)}>
                   {Object.entries(PIPE_CONFIG).map(([k,v])=><option key={k} value={k}>{v.label} (C={v.C})</option>)}
                 </Sel>
+                {!H.pipeOK&&<div className="mm-pipe-warn" style={{marginTop:5,fontSize:10,color:"#b91c1c",fontWeight:700}}>⚠ 사용압력 {ff(CP.Pdis,3)} MPa ≥ 1.2 MPa — KS D 3562 · 3583 (NFPC 102 제6조①2호)</div>}
               </div>
             </div>
           </Box>
           <PipeTable segs={hSegs} setSegs={setHSegs} pipeType={hSys.pipeType} pipeSizes={H_PIPE_SIZES}
-            velLimit={4} velLimit2={10} flowOpts={[130,260,390,520,650]}
-            velLabel="⚠️ 유속 제한 (NFTC 102 §2.3.5): 펌프 토출 측 주배관 ≤ 4 m/s — 초과 시 ⚡ 표시"
-            label="Ⅰ-2. 옥내소화전 배관 구간 데이터 입력"/>
-          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-5.0</div>
+            velLimit={4} flowOpts={[130,260,390,520,650]}
+            velLabel="⚠️ 유속 참고 (NFTC 102 2.3.5): 펌프 토출 측 주배관 4 m/s 이하 — 이 표(분기 후 옥내소화전 배관)에도 4 m/s를 참고로 표시 · 펌프 토출 측 공통 주배관은 ③ 탭 「공통 배관」에서 판정"
+            label="Ⅰ-2. 옥내소화전 배관 구간 (공통 배관 분기 후)" hdColor="#7f1d1d"/>
+          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-5.1</div>
         </></div>}
 
         {/* ════ TAB 1: 옥외소화전 입력 ════ */}
         {tab===1&&<div className="no-print"><>
-          <Box title="Ⅱ. 옥외소화전 시스템 파라미터 (NFPC 109)" color="#15803d">
+          <Box title="Ⅱ. 옥외소화전 시스템 파라미터 (NFPC · NFTC 109)" color="#15803d">
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:14}}>
               <div>
-                <LabelEl>A. 동시사용 소화전 수</LabelEl>
+                <LabelEl>A. 옥외소화전 설치개수 (2개 이상 → 2)</LabelEl>
                 <InpNum val={oSys.hydrants} min={1} max={2} onChange={v=>ssO("hydrants",v)} unit="개 (최대 2)"/>
-                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>개당 방사량 350 ℓ/min 고정 (NFPC 109 제5조①③)</div>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>350 ℓ/min 이상(계산 350) · 1개당 7 m³ — NFPC 109 제4조① · 제5조①3호</div>
               </div>
-              <div><LabelEl>F. 실양정 (h₁)</LabelEl><InpNum val={oSys.actualHead} onChange={v=>ssO("actualHead",v)} unit="m"/></div>
+              <div><LabelEl>F. 실양정 (h₁)</LabelEl><InpNum val={oSys.actualHead} onChange={v=>ssO("actualHead",v)} unit="m"/>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>펌프 ↔ 가장 높은 옥외소화전 호스접결구</div></div>
+              <div><LabelEl>F-1. 최저 호스접결구 높이 (펌프 기준)</LabelEl><InpNum val={oSys.lowHead} onChange={v=>ssO("lowHead",v)} unit="m"/>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>0.7 MPa 감압 판정용(NFPC 109 제5조①3호 단서) · 펌프보다 낮으면 음수</div></div>
               <div><LabelEl>G. 호스 길이 (본수 선택)</LabelEl>
                 <Sel val={oSys.hoseLen} onChange={v=>ssO("hoseLen",parseInt(v))}>
                   <option value={15}>15 m (1본)</option>
                   <option value={30}>30 m (2본)</option>
                   <option value={45}>45 m (3본)</option>
                 </Sel>
-                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>1본 = 15 m | 65mm 호스 (NFPC 109 제6조②)</div>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>1본 = 15 m(MANMIN 참고값) | 호스 구경 65 mm (NFPC 109 제6조②)</div>
               </div>
               <div><LabelEl>G-1. 호스 타입 (65mm)</LabelEl>
                 <Sel val={oSys.hoseType} onChange={v=>ssO("hoseType",+v)}>
@@ -1201,19 +1273,21 @@ function App(){
                     <option key={k} value={k}>{v.label} ({v.rate} m/100m)</option>
                   ))}
                 </Sel>
+                <div style={{fontSize:10,color:"#9ca3af",marginTop:4}}>손실률 = MANMIN 참고값</div>
               </div>
               <div><LabelEl>배관 종류 (C값)</LabelEl>
                 <Sel val={oSys.pipeType} onChange={v=>ssO("pipeType",v)}>
                   {Object.entries(PIPE_CONFIG).map(([k,v])=><option key={k} value={k}>{v.label} (C={v.C})</option>)}
                 </Sel>
+                {!O.pipeOK&&<div className="mm-pipe-warn" style={{marginTop:5,fontSize:10,color:"#b91c1c",fontWeight:700}}>⚠ 사용압력 {ff(CP.Pdis,3)} MPa ≥ 1.2 MPa — KS D 3562 · 3583 (NFTC 109 2.3.3.2) · NFPC 109 제6조③은 KS D 3562 · 5301</div>}
               </div>
             </div>
           </Box>
           <PipeTable segs={oSegs} setSegs={setOSegs} pipeType={oSys.pipeType} pipeSizes={O_PIPE_SIZES}
-            velLimit={4} velLimit2={10} flowOpts={[350,700]}
-            velLabel="⚠️ 유속 제한: 펌프 토출 측 주배관 ≤ 4 m/s — 초과 시 ⚡ 표시"
-            label="Ⅱ-2. 옥외소화전 배관 구간 데이터 입력"/>
-          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-5.0</div>
+            velLimit={4} flowOpts={[350,700]}
+            velLabel="⚠️ 유속 참고: 옥외소화전 기준에는 유속 규정이 없어 NFTC 102 2.3.5(4 m/s 이하)를 준용해 표시합니다"
+            label="Ⅱ-2. 옥외소화전 배관 구간 (공통 배관 분기 후)" hdColor="#14532d"/>
+          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",paddingRight:4}}>MANMIN · Ver-5.1</div>
         </></div>}
 
         {/* ════ TAB 2: 겸용 펌프 결과 ════ */}
@@ -1229,7 +1303,7 @@ function App(){
               <div>
                 <LabelEl>펌프 효율 (η)</LabelEl>
                 <EffInp val={cPump.pumpEff} onChange={v=>ssCp("pumpEff",v)}/>
-                <div style={{fontSize:10,color:"#6b7280",marginTop:4}}>참고: 40A=40% / 50A=45% / 65A=55% / 80A=55% / 100A=60% / 125A=65% / 150A=70%</div>
+                <div style={{fontSize:10,color:"#6b7280",marginTop:4}}>참고(MANMIN): 40A=40% / 50A=45% / 65A=55% / 80A=55% / 100A=60% / 125A=65% / 150A=70%</div>
               </div>
               <div>
                 <LabelEl>동력 전달방식</LabelEl>
@@ -1237,8 +1311,28 @@ function App(){
                   {Object.entries(TRANS_TYPE).map(([k,v])=><option key={k} value={k}>{v.label} (K={v.k})</option>)}
                 </Sel>
               </div>
+              <div>
+                <LabelEl>옥상수조 (옥내소화전 유효수량 ÷ 3)</LabelEl>
+                <Sel val={cPump.roofEx} onChange={v=>ssCp("roofEx",+v)}>
+                  <option value={0}>설치 — 옥내 유효수량의 1/3 이상</option>
+                  <option value={1}>면제 — 단서 해당</option>
+                </Sel>
+                <div style={{fontSize:10,color:"#6b7280",marginTop:4}}>NFPC 102 제4조② · NFTC 102 2.1.2 {buildingFloor>1?"· 고층건축물은 (2) 고가수조 · (3) 수원이 최상층 방수구보다 높은 경우만 면제(NFTC 604 2.1.2)":"(1) 지하층만 · (2) 고가수조 · (3) 수원이 최상층 방수구보다 높음 · (4) 높이 10 m 이하 · (5) 내연기관 · 비상전원 예비펌프 · (6) 2.2.1.9 단서 · (7) 가압수조"} — 옥외소화전 기준에는 옥상수조 규정 없음</div>
+              </div>
+              <div>
+                <LabelEl>공통 배관 종류 (C값)</LabelEl>
+                <Sel val={cPump.pipeType} onChange={v=>ssCp("pipeType",v)}>
+                  {Object.entries(PIPE_CONFIG).map(([k,v])=><option key={k} value={k}>{v.label} (C={v.C})</option>)}
+                </Sel>
+                {!CP.pipeOK&&<div className="mm-pipe-warn" style={{marginTop:5,fontSize:10,color:"#b91c1c",fontWeight:700}}>⚠ 사용압력 {ff(CP.Pdis,3)} MPa ≥ 1.2 MPa — KS D 3562 · 3583</div>}
+              </div>
             </div>
           </Box>
+
+          <PipeTable segs={cSegs} setSegs={setCSegs} pipeType={cPump.pipeType} pipeSizes={C_PIPE_SIZES}
+            velLimit={4}
+            velLabel={`⚠️ 유속 판정 (NFTC 102 2.3.5): 펌프 토출 측 주배관 ≤ 4 m/s — 초과 시 ⚠ · 공통 배관 유량 = 겸용 토출량 ${CP.Clpm} ℓ/min 기준으로 입력`}
+            label="Ⅲ-1. 공통 배관 (펌프 토출 측 — 두 설비 합산 유량 · 손실을 두 설비 양정에 모두 가산)" hdColor="#1e3a8a"/>
 
           {/* 각 설비 계산 결과 비교 */}
           <div className="g-res-2col" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
@@ -1249,11 +1343,12 @@ function App(){
                 <Card label="소화전 수 (A)" value={H.A} unit="개" bc="red"/>
                 <Card label="펌프 토출량" value={H.Clpm} unit="ℓ/min" formula={`${H.A}×130`} bc="orange"/>
                 <Card label="실양정 (E)" value={ff(H.E)} unit="m" bc="blue"/>
+                <Card label="공통 배관 (F₀)" value={f3(H.Fc)} unit="m" bc="blue"/>
                 <Card label="배관손실 (F)" value={f3(H.F)} unit="m" bc="blue"/>
                 <Card label="호스손실 (G)" value={f3(H.G)} unit="m" bc="blue"/>
-                <Card label="안전율 (I)" value={f3(H.I)} unit="m" formula="×10%"/>
+                <Card label="안전율 (I)" value={f3(H.I)} unit="m" formula="×10% (MANMIN)"/>
                 <Card label="전양정 (J)" value={H.J} unit="m" bc="red"/>
-                <Card label="수원 용량" value={f3(H.D)} unit="m³" bc="orange"/>
+                <Card label="수원 (유효수량)" value={f3(H.D)} unit="m³" formula={`${H.A}×${f3(H.hWaterTime*0.13)} m³`} bc="orange"/>
               </div>
             </div>
             {/* 옥외소화전 결과 */}
@@ -1263,32 +1358,51 @@ function App(){
                 <Card label="소화전 수 (A)" value={O.A} unit="개" bc="green"/>
                 <Card label="펌프 토출량" value={O.Clpm} unit="ℓ/min" formula={`${O.A}×350`} bc="orange"/>
                 <Card label="실양정 (E)" value={ff(O.E)} unit="m" bc="blue"/>
+                <Card label="공통 배관 (F₀)" value={f3(O.Fc)} unit="m" bc="blue"/>
                 <Card label="배관손실 (F)" value={f3(O.F)} unit="m" bc="blue"/>
                 <Card label="호스손실 (G)" value={f3(O.G)} unit="m" formula={`${oSys.hoseLen}m (${oSys.hoseLen/15}본)`}/>
-                <Card label="안전율 (I)" value={f3(O.I)} unit="m" formula="×10%"/>
+                <Card label="안전율 (I)" value={f3(O.I)} unit="m" formula="×10% (MANMIN)"/>
                 <Card label="전양정 (J)" value={O.J} unit="m" bc="green"/>
-                <Card label="수원 용량" value={f3(O.D)} unit="m³" formula={`${O.A}×7 m³`} bc="teal"/>
+                <Card label="수원" value={f3(O.D)} unit="m³" formula={`${O.A}×7 m³`} bc="teal"/>
               </div>
             </div>
           </div>
 
           {/* 겸용 펌프 최종 결과 */}
-          <div style={{background:"linear-gradient(135deg,#0f172a,#1e3a5f)",borderRadius:14,padding:22}}>
+          <div className="mm-final" style={{background:"linear-gradient(135deg,#0f172a,#1e3a5f)",borderRadius:14,padding:22}}>
+            {CP.hiRise&&<div className="mm-hirise" style={{marginBottom:12,fontSize:11.5,color:"#fecaca",fontWeight:700,padding:"8px 12px",background:"rgba(239,68,68,0.18)",border:"1px solid rgba(239,68,68,0.55)",borderRadius:8}}>⚠ 고층건축물 — 옥내소화전 펌프는 전용 + 예비펌프(NFTC 604 2.1.3) · 겸용 펌프 불가 · 아래 값은 참고 계산</div>}
             <div style={{color:"#93c5fd",fontSize:13,fontWeight:700,marginBottom:16,display:"flex",alignItems:"center",gap:8}}>
               <span style={{background:"#1d4ed8",color:"white",borderRadius:"50%",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:900}}>겸</span>
-              겸용 펌프 선정 결과 — NFTC 102 + NFPC 109
+              겸용 펌프 선정 결과 — NFPC 102 제12조 · NFPC 109 제11조
             </div>
-            <div style={{background:"rgba(255,255,255,0.06)",borderRadius:10,padding:"12px 16px",marginBottom:14,fontSize:11,color:"#cbd5e1",lineHeight:2}}>
+            <div className="mm-basis" style={{background:"rgba(255,255,255,0.06)",borderRadius:10,padding:"12px 16px",marginBottom:14,fontSize:11,color:"#cbd5e1",lineHeight:2,wordBreak:"keep-all"}}>
               <b style={{color:"#93c5fd"}}>【 겸용 설계 기준 】</b><br/>
               ◆ 토출량 = 옥내소화전({H.Clpm} ℓ/min) + 옥외소화전({O.Clpm} ℓ/min) = <b style={{color:"#fbbf24",fontSize:13}}>{CP.Clpm} ℓ/min</b><br/>
-              ◆ 전양정 = max(옥내소화전 {H.J}m, 옥외소화전 {O.J}m) = <b style={{color:"#fbbf24",fontSize:13}}>{CP.J} m</b> ({CP.hHead} 기준 채택)<br/>
-              ◆ 수원 = 옥내소화전({f3(H.D)} m³) + 옥외소화전({f3(O.D)} m³) = <b style={{color:"#fbbf24",fontSize:13}}>{f3(CP.D)} m³</b><br/>
+              ◆ 전양정 = max(옥내 {H.J}m, 옥외 {O.J}m) = <b style={{color:"#fbbf24",fontSize:13}}>{CP.J} m</b> ({CP.hHead} 채택 · 공통 배관 {f3(X.Fc)} m 포함)<br/>
+              ◆ 유효수량 = 옥내 {f3(H.D)} m³ + 옥외 {f3(O.D)} m³ = {f3(CP.D)} m³ · 옥상수조 {CP.roofEx?"면제":`${f3(CP.R)} m³`} → 총 저수량 <b style={{color:"#fbbf24",fontSize:13}}>{f3(CP.Dt)} m³</b><br/>
               ◆ 축동력 = 0.163 × {f3(CP.M)} m³/min × {CP.J} m × {CP.K} / {CP.N} = <b style={{color:"#fbbf24",fontSize:13}}>{f3(CP.Pkw)} kW</b>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+            <div className="mm-press" style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10,marginBottom:14}}>
+              <div style={{background:CP.pipePressOK?"rgba(34,197,94,0.12)":"rgba(239,68,68,0.18)",border:`1px solid ${CP.pipePressOK?"rgba(34,197,94,0.45)":"rgba(239,68,68,0.55)"}`,borderRadius:8,padding:"10px 12px"}}>
+                <div style={{color:"#94a3b8",fontSize:10.5}}>배관 사용압력 S = J × 0.0098</div>
+                <div style={{color:"white",fontSize:15,fontWeight:800,fontFamily:"'JetBrains Mono','Noto Sans KR',monospace"}}>{ff(CP.Pdis,3)} MPa</div>
+                <div style={{fontSize:10.5,color:CP.pipePressOK?"#86efac":"#fca5a5",fontWeight:700,marginTop:3}}>{CP.hiPress?(CP.pipePressOK?"1.2 MPa 이상 — KS D 3562 적합":"1.2 MPa 이상 — KS D 3562 · 3583 필요"):"1.2 MPa 미만 — 선택 배관 적합"}</div>
+              </div>
+              <div style={{background:H.needPRV?"rgba(239,68,68,0.18)":"rgba(34,197,94,0.12)",border:`1px solid ${H.needPRV?"rgba(239,68,68,0.55)":"rgba(34,197,94,0.45)"}`,borderRadius:8,padding:"10px 12px"}}>
+                <div style={{color:"#94a3b8",fontSize:10.5}}>옥내 최저층 노즐 (J − {ff(H.hL)} − {ff(H.G)}) × 0.0098</div>
+                <div style={{color:"white",fontSize:15,fontWeight:800,fontFamily:"'JetBrains Mono','Noto Sans KR',monospace"}}>{ff(H.Plow,3)} MPa</div>
+                <div style={{fontSize:10.5,color:H.needPRV?"#fca5a5":"#86efac",fontWeight:700,marginTop:3}}>{H.needPRV?`0.7 MPa 초과 — 감압장치 필요 (펌프 기준 ${ff(H.hStar)} m 미만 방수구)`:"0.7 MPa 이하 — 감압 불필요"}</div>
+              </div>
+              <div style={{background:O.needPRV?"rgba(239,68,68,0.18)":"rgba(34,197,94,0.12)",border:`1px solid ${O.needPRV?"rgba(239,68,68,0.55)":"rgba(34,197,94,0.45)"}`,borderRadius:8,padding:"10px 12px"}}>
+                <div style={{color:"#94a3b8",fontSize:10.5}}>옥외 최저 노즐 (J − {ff(O.hL)} − {ff(O.G)}) × 0.0098</div>
+                <div style={{color:"white",fontSize:15,fontWeight:800,fontFamily:"'JetBrains Mono','Noto Sans KR',monospace"}}>{ff(O.Plow,3)} MPa</div>
+                <div style={{fontSize:10.5,color:O.needPRV?"#fca5a5":"#86efac",fontWeight:700,marginTop:3}}>{O.needPRV?`0.7 MPa 초과 — 호스접결구 인입측 감압장치 (펌프 기준 ${ff(O.hStar)} m 미만)`:"0.7 MPa 이하 — 감압 불필요"}</div>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}} className="mm-cards4">
               {[["합산 토출량 (Q)",`${CP.Clpm} ℓ/min`],["채택 전양정 (H)",`${CP.J} m`],
                 ["전동기 출력",`${CP.Php} HP`],["펌프 구경",`${cPump.pumpDia} A`],
-                ["합산 수원 (D)",`${f3(CP.D)} m³`],["펌프 효율 (η)",`${cPump.pumpEff} %`],
+                ["총 저수량 (D + R)",`${f3(CP.Dt)} m³`],["펌프 효율 (η)",`${cPump.pumpEff} %`],
                 ["전달방식",(TRANS_TYPE[cPump.transType]&&TRANS_TYPE[cPump.transType].label)],["전달계수 (K)",`${CP.K}`]
               ].map(([l,v])=>(
                 <div key={l} style={{background:"rgba(255,255,255,0.06)",borderRadius:8,padding:"10px 12px"}}>
@@ -1300,8 +1414,9 @@ function App(){
             <div style={{borderTop:"1px solid rgba(255,255,255,0.15)",paddingTop:14,textAlign:"center",fontSize:18,fontWeight:900,color:"#93c5fd",letterSpacing:"0.05em",fontFamily:"'JetBrains Mono','Noto Sans KR',monospace"}}>
               Q = {f3(CP.M)} m³/min &nbsp;×&nbsp; H = {CP.J} m &nbsp;×&nbsp; P = {CP.Php} HP
             </div>
+            <div style={{marginTop:10,fontSize:10,color:"#64748b",lineHeight:1.7}}>압력 판정은 배관 마찰을 빼지 않은 보수적 추정이며 펌프 성능곡선을 반영하지 않습니다 · 안전율 · 관부속 · 호스 손실률 · K · η · C = MANMIN 참고값</div>
           </div>
-          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",marginTop:8,paddingRight:4}}>MANMIN · Ver-5.0</div>
+          <div style={{textAlign:"right",fontFamily:"'Orbitron',sans-serif",fontSize:10,fontWeight:700,color:"#94a3b8",letterSpacing:"0.08em",marginTop:8,paddingRight:4}}>MANMIN · Ver-5.1</div>
         </></div>}
 
         {/* ════ TAB 3: 계산서 출력 ════ */}
@@ -1325,7 +1440,7 @@ function App(){
             {/* 제목 */}
             <div style={{textAlign:"center",marginBottom:14,borderBottom:"3px double #334155",paddingBottom:10}}>
               <div style={{fontSize:22,fontWeight:900,letterSpacing:"0.06em"}}>겸용 펌프 용량 계산서</div>
-              <div style={{fontSize:12,color:"#64748b",marginTop:6}}>옥내소화전(NFPC/NFTC 102) + 옥외소화전(NFPC 109) 겸용 펌프 설계</div>
+              <div style={{fontSize:12,color:"#64748b",marginTop:6}}>옥내소화전(NFPC · NFTC 102) + 옥외소화전(NFPC · NFTC 109) 겸용 펌프 설계</div>
               <table style={{margin:"12px auto 0",borderCollapse:"collapse"}}>
                 <tbody><tr>
                   {[["공사명",proj.name||"(미입력)"],["설계자",proj.designer||"(미입력)"],["작성일",proj.date]].map(([k,v])=>(
@@ -1337,7 +1452,7 @@ function App(){
 
             {/* Ⅰ. 옥내소화전 */}
             <div className="print-section" style={{border:"2px solid #b91c1c",borderRadius:8,overflow:"hidden",marginBottom:14}}>
-              <div style={{background:"#b91c1c",color:"white",padding:"8px 16px",fontSize:13,fontWeight:700}}>Ⅰ. 옥내소화전설비 계산 (NFTC 102)</div>
+              <div style={{background:"#b91c1c",color:"white",padding:"8px 16px",fontSize:13,fontWeight:700}}>Ⅰ. 옥내소화전설비 계산 (NFPC · NFTC 102{buildingFloor>1?" · NFTC 604":""})</div>
               <div style={{padding:"14px 16px"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                   <thead><tr style={{background:"#fef2f2"}}>
@@ -1345,15 +1460,16 @@ function App(){
                   </tr></thead>
                   <tbody>
                     {[
-                      ["A","최대구역 소화전 수",H.A,"개",`NFTC 102 제5조 — 최대 2개 이하 (${H.A}개 적용)`],
-                      ["B","소화전 개당 방사량",H_FLOW_PER,"ℓ/min","NFTC 102 제6조 (130 ℓ/min 고정)"],
-                      ["C","펌프 토출량",H.Clpm,"ℓ/min",`C = A×B = ${H.A}×${H_FLOW_PER}`],
-                      ["D","수원 용량",`${f3(H.D)}`,"m³",`D = ${H.A}×130×20÷1000 = ${f3(H.D)} m³`],
-                      ["E","실양정 (h₁)",ff(H.E),"m","설계 도면 기준"],
-                      ["F","배관 마찰손실 (h₂)",f3(H.F),"m","Hazen-Williams 공식"],
-                      ["G","호스 마찰손실 (h₃)",f3(H.G),"m",`${H.hose.label}`],
-                      ["H₄","노즐 환산수두",H_NOZZLE,"m","방수압 0.17 MPa 환산"],
-                      ["I","안전율",f3(H.I),"m","(E+F+G+H₄)×10%"],
+                      ["A","소화전 수 (설치개수 최다 층)",H.A,"개",buildingFloor===1?`NFPC 102 제4조① · 제5조①4호 — 2개 한도 (${H.A}개 적용)`:`NFTC 604 2.1.1 — 5개 한도 (${H.A}개 적용)`],
+                      ["B","소화전 1개 방수량",H_FLOW_PER,"ℓ/min","130 ℓ/min 이상(계산 130) — NFPC 102 제5조①3호"],
+                      ["C","펌프 토출량",H.Clpm,"ℓ/min",`C = A×B = ${H.A}×${H_FLOW_PER} (제5조①4호)`],
+                      ["D","수원 (유효수량)",`${f3(H.D)}`,"m³",`D = ${H.A}×130×${H.hWaterTime}÷1000 — ${f3(H.hWaterTime*0.13)} m³/개 (${buildingFloor===1?"NFPC 102 제4조①":"NFTC 604 2.1.1"})`],
+                      ["E","실양정 (h₁)",ff(H.E),"m","펌프 ↔ 최고층 방수구 (설계 도면)"],
+                      ["F₀","공통 배관 마찰손실",f3(H.Fc),"m","펌프 토출 측 공통 주배관 — Ⅲ-1 상세표"],
+                      ["F","배관 마찰손실 (h₂)",f3(H.F),"m","분기 후 배관 — Hazen-Williams (m/100 m)"],
+                      ["G","호스 마찰손실 (h₃)",f3(H.G),"m",`${H.hose.label} — MANMIN 참고값`],
+                      ["H₄","노즐 환산수두",H_NOZZLE,"m","0.17 MPa 이상 — NFPC 102 제5조①3호"],
+                      ["I","안전율",f3(H.I),"m","(E+F₀+F+G+H₄)×10% — MANMIN 참고값"],
                       ["J","전양정",H.J,"m","올림 적용"],
                     ].map(([no,lbl,val,unit,bas])=>(
                       <tr key={no} style={{background:"white"}}>
@@ -1371,7 +1487,7 @@ function App(){
 
             {/* Ⅱ. 옥외소화전 */}
             <div className="print-section" style={{border:"2px solid #15803d",borderRadius:8,overflow:"hidden",marginBottom:14}}>
-              <div style={{background:"#15803d",color:"white",padding:"8px 16px",fontSize:13,fontWeight:700}}>Ⅱ. 옥외소화전설비 계산 (NFPC 109)</div>
+              <div style={{background:"#15803d",color:"white",padding:"8px 16px",fontSize:13,fontWeight:700}}>Ⅱ. 옥외소화전설비 계산 (NFPC · NFTC 109)</div>
               <div style={{padding:"14px 16px"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                   <thead><tr style={{background:"#f0fdf4"}}>
@@ -1379,15 +1495,16 @@ function App(){
                   </tr></thead>
                   <tbody>
                     {[
-                      ["A","동시사용 소화전 수",O.A,"개",`NFPC 109 제4조① — 2개 이상 설치 시 2개 기준 (최대 2개)`],
-                      ["B","소화전 개당 방사량",O_FLOW_PER,"ℓ/min","NFPC 109 제5조①③ (350 ℓ/min 고정)"],
+                      ["A","옥외소화전 수",O.A,"개","NFPC 109 제4조① — 2개 이상 설치 시 2개"],
+                      ["B","소화전 1개 방수량",O_FLOW_PER,"ℓ/min","350 ℓ/min 이상(계산 350) — NFPC 109 제5조①3호"],
                       ["C","펌프 토출량",O.Clpm,"ℓ/min",`C = A×B = ${O.A}×${O_FLOW_PER}`],
-                      ["D","수원 용량",`${f3(O.D)}`,"m³",`D = A×7 m³ = ${O.A}×7 = ${f3(O.D)} m³ (NFPC 109 제4조①)`],
-                      ["E","실양정 (h₁)",ff(O.E),"m","설계 도면 기준"],
-                      ["F","배관 마찰손실 (h₂)",f3(O.F),"m","Hazen-Williams 공식"],
-                      ["G","호스 마찰손실 (h₃)",f3(O.G),"m",`${O.hose.label} — ${O.hose.rate} m/100m × ${oSys.hoseLen} m`],
-                      ["H₄","노즐 환산수두",O_NOZZLE,"m","방수압 0.25 MPa 환산 (NFPC 109 제5조①③)"],
-                      ["I","안전율",f3(O.I),"m","(E+F+G+H₄)×10%"],
+                      ["D","수원",`${f3(O.D)}`,"m³",`D = A×7 m³ = ${O.A}×7 (NFPC 109 제4조① · NFTC 109 2.1.1)`],
+                      ["E","실양정 (h₁)",ff(O.E),"m","펌프 ↔ 가장 높은 호스접결구 (설계 도면)"],
+                      ["F₀","공통 배관 마찰손실",f3(O.Fc),"m","펌프 토출 측 공통 주배관 — Ⅲ-1 상세표"],
+                      ["F","배관 마찰손실 (h₂)",f3(O.F),"m","분기 후 배관 — Hazen-Williams (m/100 m)"],
+                      ["G","호스 마찰손실 (h₃)",f3(O.G),"m",`${O.hose.label} — ${O.hose.rate} m/100m × ${oSys.hoseLen} m (MANMIN 참고값)`],
+                      ["H₄","노즐 환산수두",O_NOZZLE,"m","0.25 MPa 이상 — NFPC 109 제5조①3호"],
+                      ["I","안전율",f3(O.I),"m","(E+F₀+F+G+H₄)×10% — MANMIN 참고값"],
                       ["J","전양정",O.J,"m","올림 적용"],
                     ].map(([no,lbl,val,unit,bas])=>(
                       <tr key={no} style={{background:"white"}}>
@@ -1493,31 +1610,75 @@ function App(){
               </table>
             </div>
 
+            {/* ※ 배관 및 관부속 마찰손실 수두 상세표 — 공통 배관(v5.1.0) */}
+            <div className="print-section" style={{marginBottom:18}}>
+              <div style={{fontWeight:700,fontSize:11,marginBottom:7,color:"#374151",borderLeft:"3px solid #1e3a8a",paddingLeft:10}}>
+                ※ 배관 및 관부속 마찰손실 수두 상세표 【 Ⅲ-1 공통 배관 — 펌프 토출 측 】 &nbsp;[ F₀ = {f3(X.Fc)} m &nbsp;|&nbsp; 배관종류 : {PIPE_CONFIG[cPump.pipeType]?.shortLabel}, C = {PIPE_CONFIG[cPump.pipeType]?.C} ]
+              </div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:10}}>
+                <thead>
+                  <tr style={{background:"#1e3a8a",color:"white"}}>
+                    {["NO","유량\n(ℓ/min)","관경\n(A)","직관\n(m)","90°Elbow\n수량(상당직관)","45°Elbow\n수량(상당직관)","분류Tee\n수량(상당직관)","직류Tee\n수량(상당직관)","Gate V/V\n수량(상당직관)","Ball V/V\n수량(상당직관)","Angle V/V\n수량(상당직관)","Check V/V\n수량(상당직관)","상당직관\n합계(m)","마찰계수\n(m/100m)","손실수두\n(m)"].map((h,i)=>(
+                      <th key={i} style={{border:BD,padding:"4px 3px",textAlign:"center",whiteSpace:"pre-line",lineHeight:1.3,fontSize:8,fontWeight:700}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {X.cdets.map((d,i)=>{
+                    const s=cSegs[i];
+                    return <tr key={i} style={{background:i%2===0?"white":"#f9fafb"}}>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'JetBrains Mono','Noto Sans KR',monospace",fontSize:10}}>{i+1}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'JetBrains Mono','Noto Sans KR',monospace",fontSize:10}}>{s.flow}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'JetBrains Mono','Noto Sans KR',monospace",fontSize:10}}>{s.dia}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'JetBrains Mono','Noto Sans KR',monospace",fontSize:10}}>{s.len}</td>
+                      {d.counts.map((cnt,j)=>(
+                        <td key={j} style={{border:BD,padding:"2px 3px",textAlign:"center",fontSize:9,lineHeight:1.3}}>
+                          <div style={{fontFamily:"'JetBrains Mono','Noto Sans KR',monospace",fontWeight:700,fontSize:10}}>{cnt}</div>
+                          <div style={{fontFamily:"'JetBrains Mono','Noto Sans KR',monospace",fontSize:8,color:"#6b7280"}}>({f3(d.eq[j])})</div>
+                        </td>
+                      ))}
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'JetBrains Mono','Noto Sans KR',monospace",fontSize:10}}>{f3(d.fl)}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'JetBrains Mono','Noto Sans KR',monospace",fontSize:10,color:"#c2410c",fontWeight:700}}>{f3(d.fric)}</td>
+                      <td style={{border:BD,padding:"3px 4px",textAlign:"center",fontFamily:"'JetBrains Mono','Noto Sans KR',monospace",fontSize:10,color:"#1d4ed8",fontWeight:700}}>{f3(d.hl)}</td>
+                    </tr>;
+                  })}
+                  <tr style={{background:"#dbeafe",fontWeight:700}}>
+                    <td colSpan={14} style={{border:BD,padding:"4px 8px",textAlign:"right",color:"#1e3a8a",fontSize:10}}>합계 (F₀ — 두 설비 양정에 모두 가산)</td>
+                    <td style={{border:BD,padding:"4px 6px",textAlign:"right",fontFamily:"'JetBrains Mono','Noto Sans KR',monospace",color:"#1e3a8a",fontWeight:900,fontSize:11}}>{f3(X.Fc)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
             {/* Ⅲ. 겸용 펌프 선정 결과 */}
             <div className="page-break print-section" style={{border:"2px solid #1d4ed8",borderRadius:8,overflow:"hidden",marginBottom:20}}>
-              <div style={{background:"#1d4ed8",color:"white",padding:"8px 16px",fontSize:13,fontWeight:700}}>Ⅲ. 겸용 펌프 선정 결과 (NFTC 102 + NFPC 109)</div>
+              <div style={{background:"#1d4ed8",color:"white",padding:"8px 16px",fontSize:13,fontWeight:700}}>Ⅲ. 겸용 펌프 선정 결과 (NFPC 102 제12조 · NFPC 109 제11조)</div>
               <div style={{padding:"14px 16px"}}>
                 <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:11,color:"#1e40af",lineHeight:2}}>
                   <b>【 겸용 설계 기준 적용 】</b><br/>
-                  ① 토출량 = 옥내소화전({H.Clpm} ℓ/min) + 옥외소화전({O.Clpm} ℓ/min) = <b>{CP.Clpm} ℓ/min = {f3(CP.M)} m³/min</b><br/>
-                  ② 전양정 = max(옥내소화전 {H.J}m, 옥외소화전 {O.J}m) → <b>{CP.J} m</b> ({CP.hHead} 기준 채택)<br/>
-                  ③ 수원 = 옥내소화전({f3(H.D)} m³) + 옥외소화전({f3(O.D)} m³) = <b>{f3(CP.D)} m³</b>
+                  {CP.hiRise&&<><b style={{color:"#b91c1c"}}>⚠ 고층건축물 — 옥내소화전 펌프 전용 · 예비펌프(NFTC 604 2.1.3) : 겸용 펌프 불가, 아래는 참고 계산</b><br/></>}
+                  ① 토출량 = 옥내소화전 {H.Clpm} ℓ/min + 옥외소화전 {O.Clpm} ℓ/min = <b>{CP.Clpm} ℓ/min = {f3(CP.M)} m³/min</b> — 합산(NFPC 102 제12조② · NFPC 109 제11조②)<br/>
+                  ② 전양정 = max(옥내소화전 {H.J} m, 옥외소화전 {O.J} m) → <b>{CP.J} m</b> ({CP.hHead} 기준 채택 · 공통 배관 F₀ {f3(X.Fc)} m 포함)<br/>
+                  ③ 유효수량 = {f3(H.D)} + {f3(O.D)} = {f3(CP.D)} m³ · 옥상수조 R = {CP.roofEx?"면제(단서)":`옥내 ${f3(H.D)} ÷ 3 = ${f3(CP.R)} m³`} → <b>총 저수량 {f3(CP.Dt)} m³</b> (NFPC 102 제12조① · 제4조② · NFPC 109 제11조①)<br/>
+                  ④ 배관 사용압력 S = {CP.J} × 0.0098 = <b>{f3(CP.Pdis)} MPa</b> — {CP.hiPress?(CP.pipePressOK?"1.2 MPa 이상 · KS D 3562 적합":"1.2 MPa 이상 · KS D 3562 · 3583으로 변경 필요"):"1.2 MPa 미만"} (NFPC 102 제6조① · NFTC 109 2.3.3 · NFPC 109 제6조③)<br/>
+                  ⑤ 최저 노즐 방수압 — 옥내 {f3(H.Plow)} MPa {H.needPRV?`→ 감압장치 필요(펌프 기준 ${ff(H.hStar)} m 미만 방수구)`:"→ 감압 불필요"} · 옥외 {f3(O.Plow)} MPa {O.needPRV?`→ 호스접결구 인입측 감압장치(펌프 기준 ${ff(O.hStar)} m 미만)`:"→ 감압 불필요"} (각 제5조①3호 단서)<br/>
+                  <span style={{fontSize:10,color:"#475569"}}>⌞ 단서(최대의 것 이상)는 고정식 소화설비 2 이상에 한함 — 옥내 · 옥외소화전은 해당 없음 · 전양정 큰 값 채택과 안전율 10 % · 올림은 MANMIN 적용 · 압력 판정은 배관 마찰 미차감 추정</span>
                 </div>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,marginBottom:12,tableLayout:"fixed"}}>
                   <colgroup>
                     <col style={{width:"12%"}}/><col style={{width:"8%"}}/><col style={{width:"10%"}}/><col style={{width:"8%"}}/>
-                    <col style={{width:"8%"}}/><col style={{width:"8%"}}/><col style={{width:"16%"}}/><col style={{width:"10%"}}/><col style={{width:"10%"}}/>
+                    <col style={{width:"8%"}}/><col style={{width:"9%"}}/><col style={{width:"15%"}}/><col style={{width:"10%"}}/><col style={{width:"10%"}}/>
                   </colgroup>
                   <thead>
                     <tr style={{background:"#1d4ed8",color:"white"}}>
-                      {["구분","구경(A)","합산유량\n(m³/min)","동력\n(HP)","전양정\n(m)","수원\n(m³)","전달방식","펌프효율\n(η%)","소화전수\n(N)"].map(h=>(
+                      {["구분","구경(A)","합산유량\n(m³/min)","동력\n(HP)","전양정\n(m)","총 저수량\n(m³)","전달방식","펌프효율\n(η%)","소화전수\n(옥내/옥외)"].map(h=>(
                         <th key={h} style={{border:BD,padding:"5px 4px",textAlign:"center",fontWeight:700,fontSize:10,whiteSpace:"pre-line",lineHeight:1.3}}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     <tr style={{fontWeight:700,background:"white"}}>
-                      {["겸용펌프",`${cPump.pumpDia}A`,f3(CP.M),CP.Php,CP.J,f3(CP.D),(TRANS_TYPE[cPump.transType]&&TRANS_TYPE[cPump.transType].label),`${cPump.pumpEff}%`,`옥내${H.A}/옥외${O.A}`].map((v,i)=>(
+                      {["겸용펌프",`${cPump.pumpDia}A`,f3(CP.M),CP.Php,CP.J,f3(CP.Dt),(TRANS_TYPE[cPump.transType]&&TRANS_TYPE[cPump.transType].label),`${cPump.pumpEff}%`,`${H.A}개/${O.A}개`].map((v,i)=>(
                         <td key={i} style={{border:BD,padding:"6px 4px",textAlign:"center",fontFamily:"'JetBrains Mono','Noto Sans KR','Noto Sans KR Local',monospace",fontSize:10,wordBreak:"keep-all"}}>{v}</td>
                       ))}
                     </tr>
@@ -1529,18 +1690,32 @@ function App(){
               </div>
             </div>
 
-            {/* 적용 법령 */}
-            <div className="print-section" style={{padding:13,background:"#f8fafc",borderRadius:8,fontSize:11,color:"#6b7280",border:BD,lineHeight:1.9}}>
-              <b style={{color:"#374151"}}>▣ 적용 법령 및 기준</b><br/>
-              ① 화재안전기준 NFPC 102 (옥내소화전설비) / NFTC 102 [시행 2026. 3. 1.]<br/>
-              &nbsp;&nbsp;- 제5조(수원): N개×2.6 m³ 이상 (최대 5개) &nbsp;|&nbsp; 제6조: 방수압 0.17~0.7 MPa, 방수량 130 ℓ/min 이상<br/>
-              ② 화재안전성능기준 NFPC 109 (옥외소화전설비) [소방청고시 제2025-25호, 시행 2026. 3. 1.]<br/>
-              &nbsp;&nbsp;- 제4조(수원): 설치개수(최대 2개)×7 m³ 이상 &nbsp;|&nbsp; 제5조: 방수압 0.25 MPa 이상, 방수량 350 ℓ/min 이상<br/>
-              ③ 겸용 펌프 설계 원칙: 토출량 합산(+) / 전양정 최댓값(MAX) 채택 / 수원 합산(+)<br/>
-              ④ 배관 마찰손실: Hazen-Williams 공식 적용
+            {/* 적용 법령 — 표 (v5.1.0) */}
+            <div className="print-section" style={{marginBottom:10}}>
+              <div style={{fontWeight:700,fontSize:11,marginBottom:7,color:"#374151",borderLeft:"3px solid #334155",paddingLeft:10}}>▣ 적용 법령 및 기준 (LawMCP 원문 대조 2026-10-16)</div>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:9.5}}>
+                <colgroup><col style={{width:"28%"}}/><col style={{width:"26%"}}/><col style={{width:"46%"}}/></colgroup>
+                <thead><tr style={{background:"#334155",color:"white"}}>
+                  {["기준","고시 · 공고 (시행)","적용 조항"].map(h=><th key={h} style={{border:BD,padding:"5px 6px",fontWeight:700,textAlign:"center"}}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {[
+                    ["옥내소화전설비 화재안전성능기준 (NFPC 102)","소방청고시 제2025-25호 (2026. 3. 1.)","제4조①② 수원 · 옥상수조 · 제5조①3호 · 4호 방수압 · 방수량 · 감압 · 제6조① 배관 · 제12조①② 겸용"],
+                    ["옥내소화전설비 화재안전기술기준 (NFTC 102)","국립소방연구원공고 제2026-34호 (2026. 7. 1.)","2.1.1 · 2.1.2 · 2.2.1.3 · 2.2.1.4 · 2.2.1.5 · 2.3.1.2 · 2.3.5 · 2.9.1 · 2.9.2"],
+                    ["옥외소화전설비 화재안전성능기준 (NFPC 109)","소방청고시 제2025-28호 (2026. 3. 1.)","제4조① 수원 · 제5조①3호 방수압 · 방수량 · 감압 · 제6조②③ 호스 · 배관 · 제11조①② 겸용"],
+                    ["옥외소화전설비 화재안전기술기준 (NFTC 109)","국립소방연구원공고 제2026-9호 (2026. 3. 1.)","2.1.1 · 2.2.1.3 · 2.2.1.4 · 2.2.2.1 · 2.3.2 · 2.3.3.2 · 2.8.1 · 2.8.2"],
+                    ["고층건축물 화재안전기술기준 (NFTC 604)","공고 제2023-44호","2.1.1 수원 5개 · 2.1.2 옥상수조 · 2.1.3 옥내소화전 펌프 전용 · 예비펌프"],
+                    ["MANMIN 참고값","—","안전율 10 % · 올림 · 전양정 큰 값 채택 · 호스 손실률 · 관부속 상당길이 · K · η · C값 · 강관 내경(KS 외경 − 2 × 두께) · 옥외 유속 4 m/s 준용"],
+                  ].map((r,i)=>(
+                    <tr key={i} style={{background:i%2?"#f8fafc":"white"}}>
+                      {r.map((c,j)=><td key={j} style={{border:BD,padding:"4px 6px",color:j===0?"#111827":"#475569",fontWeight:j===0?700:400,wordBreak:"keep-all"}}>{c}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
-            <div id="dev-stamp" style={{fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:"0.08em"}}>MANMIN · Ver-5.0</div>
+            <div id="dev-stamp" style={{fontFamily:"'Orbitron',sans-serif",fontWeight:700,letterSpacing:"0.08em"}}>MANMIN · Ver-5.1</div>
           </div>{/* /report-zone */}
           </div>{/* /rpt-inner */}
           </div>{/* /rpt-outer */}
