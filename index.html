@@ -1389,12 +1389,12 @@ function App(){
                 <div style={{fontSize:10.5,color:CP.pipePressOK?"#86efac":"#fca5a5",fontWeight:700,marginTop:3}}>{CP.hiPress?(CP.pipePressOK?"1.2 MPa 이상 — KS D 3562 적합":"1.2 MPa 이상 — KS D 3562 · 3583 필요"):"1.2 MPa 미만 — 선택 배관 적합"}</div>
               </div>
               <div style={{background:H.needPRV?"rgba(239,68,68,0.18)":"rgba(34,197,94,0.12)",border:`1px solid ${H.needPRV?"rgba(239,68,68,0.55)":"rgba(34,197,94,0.45)"}`,borderRadius:8,padding:"10px 12px"}}>
-                <div style={{color:"#94a3b8",fontSize:10.5}}>옥내 최저층 노즐 (J − {ff(H.hL)} − {ff(H.G)}) × 0.0098</div>
+                <div style={{color:"#94a3b8",fontSize:10.5}}>옥내 최저층 노즐 (J {H.hL<0?"+":"−"} {ff(Math.abs(H.hL))} − {ff(H.G)}) × 0.0098</div>
                 <div style={{color:"white",fontSize:15,fontWeight:800,fontFamily:"'JetBrains Mono','Noto Sans KR',monospace"}}>{ff(H.Plow,3)} MPa</div>
                 <div style={{fontSize:10.5,color:H.needPRV?"#fca5a5":"#86efac",fontWeight:700,marginTop:3}}>{H.needPRV?`0.7 MPa 초과 — 감압장치 필요 (펌프 기준 ${ff(H.hStar)} m 미만 방수구)`:"0.7 MPa 이하 — 감압 불필요"}</div>
               </div>
               <div style={{background:O.needPRV?"rgba(239,68,68,0.18)":"rgba(34,197,94,0.12)",border:`1px solid ${O.needPRV?"rgba(239,68,68,0.55)":"rgba(34,197,94,0.45)"}`,borderRadius:8,padding:"10px 12px"}}>
-                <div style={{color:"#94a3b8",fontSize:10.5}}>옥외 최저 노즐 (J − {ff(O.hL)} − {ff(O.G)}) × 0.0098</div>
+                <div style={{color:"#94a3b8",fontSize:10.5}}>옥외 최저 노즐 (J {O.hL<0?"+":"−"} {ff(Math.abs(O.hL))} − {ff(O.G)}) × 0.0098</div>
                 <div style={{color:"white",fontSize:15,fontWeight:800,fontFamily:"'JetBrains Mono','Noto Sans KR',monospace"}}>{ff(O.Plow,3)} MPa</div>
                 <div style={{fontSize:10.5,color:O.needPRV?"#fca5a5":"#86efac",fontWeight:700,marginTop:3}}>{O.needPRV?`0.7 MPa 초과 — 호스접결구 인입측 감압장치 (펌프 기준 ${ff(O.hStar)} m 미만)`:"0.7 MPa 이하 — 감압 불필요"}</div>
               </div>
