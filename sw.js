@@ -1,4 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
+   v6.1.1 (2026-11-12) — React 18.2.0 → 18.3.1 · Babel 7.23.5 → 7.29.7 · cdnjs 로 통일 · SRI(integrity) · Pretendard CSS SRI(정밀검토 C2) — 화면 · 계산 · 인쇄 불변 · 작업지시서 §25-6-82 · 캐시명 v6.1.1 (종전 v6.1.0)
    v6.1.0 (2026-11-12) — 건물개요 공통 원본 MM-PROJECT v1.2 → v1.3(불러오기 창 표 칸 모양 고정 — 도구 CSS 가 새지 않음 · 저장값 같음, 정밀검토 C10) · 작업지시서 §25-6-80 · 판 6.1 · 캐시명 v6.1.0 (종전 v5.1.12)
    v5.1.4 2026-10-31 — 휴대전화 · 터치 화면 단추 · 입력칸 최소 높이 32px · 캐시명 v5.1.4
    v5.1.0 회차 2026-10-16 — NFPC 102(제2025-25호) · NFTC 102(제2026-34호) · NFPC 109(제2025-28호) · NFTC 109(제2026-9호) 원문 대조 근거 정정 · 마찰손실 ×100 정정 · 공통 배관 · 옥상수조 · KS 내경 · 압력 판정 · 고층 경고 · 계산 엔진 단일화 · 매뉴얼(/manual/) 캐시 제외 · 캐시명 v5.1.0
@@ -26,8 +27,8 @@ const mmMatch = (req, opt) => caches.keys()
   .then((ks) => ks.reduce((p, k) => p.then((r) => r || caches.open(k).then((c) => c.match(req, opt))), Promise.resolve(undefined)))
   .then((r) => (r && r.type === 'opaque' && req && req.mode === 'cors') ? undefined : r);
 
-const CACHE_NAME   = 'manmin-indoor-outdoor-v6.1.0';
-const STATIC_CACHE = 'manmin-indoor-outdoor-static-v6.1.0';
+const CACHE_NAME   = 'manmin-indoor-outdoor-v6.1.1';
+const STATIC_CACHE = 'manmin-indoor-outdoor-static-v6.1.1';
 
 const PRECACHE_URLS = [
   './',
