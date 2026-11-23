@@ -18,10 +18,13 @@ r=run({h:{actualHead:1},o:{actualHead:40}});ck('옥외 양정이 크면 옥외 �
 r=run({cs:{flow:960,dia:100,len:100}});ck('공통 배관 손실이 두 설비 양정에 모두 가산',r.Fc>0&&eq(r.H.Jraw,(20+r.Fc+r.H.F+14+17)*1.1)&&eq(r.O.Jraw,(5+r.Fc+r.O.F+0.6+25)*1.1));
 ck('옥외 호스 65 mm 고무 4 m/100m × 45 m = 1.8 m · 아마 8 × 30 = 2.4 m',eq(run({o:{hoseLen:45}}).O.G,1.8)&&eq(run({o:{hoseType:1,hoseLen:30}}).O.G,2.4));
 const fJ=J=>{for(let x=0;x<200;x+=0.01){const q=run({h:{actualHead:+x.toFixed(2)},o:{actualHead:-20}});if(q.C.J===J)return q;}};
-r=fJ(122);ck('J 122 → '+r.C.Pdis.toFixed(3)+' MPa · KS D 3507 적합',!r.C.hiPress&&r.C.pipePressOK);r=fJ(123);ck('J 123 → '+r.C.Pdis.toFixed(3)+' MPa · KS D 3507 부적합',r.C.hiPress&&!r.C.pipePressOK);
-const hJ=fJ(123).H.E;r=run({h:{actualHead:hJ,pipeType:"SCH40"},o:{actualHead:-20,pipeType:"SCH40"},c:{pipeType:"SCH40"}});ck('J 123 · 세 배관 모두 KS D 3562 → 적합',r.C.pipePressOK);
-r=run({h:{actualHead:hJ,pipeType:"SCH40"},o:{actualHead:-20,pipeType:"SCH40"}});ck('J 123 · 공통 배관만 KS D 3507 → 부적합',!r.C.pipePressOK);
-r=run({h:{actualHead:hJ,pipeType:"SCH40"},o:{actualHead:-20},c:{pipeType:"SCH40"}});ck('J 123 · 옥외 배관만 KS D 3507 → 부적합',!r.C.pipePressOK&&!r.O.pipeOK);
+/* v6.1.3 — 배관 사용압력 = 체절압력(입력 없으면 정격 × 1.4, 소방청 해석 412390) → 경계 J 87 / 88 */
+r=fJ(87);ck('J 87 → 체절 '+r.C.Pshut.toFixed(3)+' MPa(정격 '+r.C.Pdis.toFixed(3)+' × 1.4) · KS D 3507 적합',!r.C.hiPress&&r.C.pipePressOK&&eq(r.C.Pshut,r.C.Pdis*1.4));r=fJ(88);ck('J 88 → 체절 '+r.C.Pshut.toFixed(3)+' MPa · KS D 3507 부적합',r.C.hiPress&&!r.C.pipePressOK);
+r=run({h:{actualHead:fJ(88).H.E},o:{actualHead:-20},c:{shutPress:1.15}});ck('J 88 · 체절 입력 1.15 MPa(릴리프 등) → KS D 3507 적합',r.C.shutUser&&eq(r.C.Pshut,1.15)&&!r.C.hiPress&&r.C.pipePressOK);
+r=run({h:{actualHead:fJ(60).H.E},o:{actualHead:-20},c:{shutPress:1.2}});ck('J 60 · 체절 입력 1.2 MPa → 1.2 이상 · KS D 3507 부적합',r.C.hiPress&&!r.C.pipePressOK);
+const hJ=fJ(88).H.E;r=run({h:{actualHead:hJ,pipeType:"SCH40"},o:{actualHead:-20,pipeType:"SCH40"},c:{pipeType:"SCH40"}});ck('J 88 · 세 배관 모두 KS D 3562 → 적합',r.C.pipePressOK);
+r=run({h:{actualHead:hJ,pipeType:"SCH40"},o:{actualHead:-20,pipeType:"SCH40"}});ck('J 88 · 공통 배관만 KS D 3507 → 부적합',!r.C.pipePressOK);
+r=run({h:{actualHead:hJ,pipeType:"SCH40"},o:{actualHead:-20},c:{pipeType:"SCH40"}});ck('J 88 · 옥외 배관만 KS D 3507 → 부적합',!r.C.pipePressOK&&!r.O.pipeOK);
 const J86=fJ(86);ck('옥내 노즐 (J − 높이 − G) = '+J86.H.Plow.toFixed(3)+' MPa',eq(J86.H.Plow,(J86.C.J-0-14)*0.00980665));
 r=fJ(85);ck('J 85 · 호스릴 14 m → 옥내 노즐 '+r.H.Plow.toFixed(3)+' MPa ≤ 0.7 / J 86 → '+J86.H.Plow.toFixed(3)+' > 0.7',!r.H.needPRV&&J86.H.needPRV);
 const o72=fJ(72),o71=fJ(71);ck('옥외 노즐 (J − 0 − 0.6) · J 71 → '+o71.O.Plow.toFixed(4)+' ≤ 0.7 / J 72 → '+o72.O.Plow.toFixed(4)+' > 0.7',!o71.O.needPRV&&o72.O.needPRV&&eq(o72.O.Plow,(72-0-0.6)*0.00980665));
