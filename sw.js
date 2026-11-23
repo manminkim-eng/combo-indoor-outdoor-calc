@@ -1,4 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
+   v6.1.4 (2026-11-24) — 교차검증(2026-11-23) 권장 · 권고 반영: 합산 근거 문구(P4) · 겸용 내진 안내(P5) · 재질 「또는」 병기(P6) · 체절 · 릴리프 · 성능시험배관 안내 · 옥상수조 면제 사유(P7) · 계산 불변 · 캐시명 v6.1.4 (종전 v6.1.3)
    v6.1.3 (2026-11-24) — 교차검증(2026-11-23) 반영: 배관 사용압력 체절압력 기준(P1) · 입력값 경고(P2) · 구간 유량 확인(P3) · 캐시명 v6.1.3 (종전 v6.1.2)
    v6.1.2 (2026-11-12) — html2canvas 1.4.1 머리 태그 SRI(integrity sha384 · crossorigin) · 공통 인쇄 원본 MM-PRINT v1.0 → v1.1(지연 로더도 SRI)(정밀검토 B8 · html2canvas SRI) — 화면 · 계산 · 인쇄 불변 · 작업지시서 §25-6-87 · 캐시명 v6.1.2 (종전 v6.1.1)
    v6.1.1 (2026-11-12) — React 18.2.0 → 18.3.1 · Babel 7.23.5 → 7.29.7 · cdnjs 로 통일 · SRI(integrity) · Pretendard CSS SRI(정밀검토 C2) — 화면 · 계산 · 인쇄 불변 · 작업지시서 §25-6-82 · 캐시명 v6.1.1 (종전 v6.1.0)
@@ -29,8 +30,8 @@ const mmMatch = (req, opt) => caches.keys()
   .then((ks) => ks.reduce((p, k) => p.then((r) => r || caches.open(k).then((c) => c.match(req, opt))), Promise.resolve(undefined)))
   .then((r) => (r && r.type === 'opaque' && req && req.mode === 'cors') ? undefined : r);
 
-const CACHE_NAME   = 'manmin-indoor-outdoor-v6.1.3';
-const STATIC_CACHE = 'manmin-indoor-outdoor-static-v6.1.3';
+const CACHE_NAME   = 'manmin-indoor-outdoor-v6.1.4';
+const STATIC_CACHE = 'manmin-indoor-outdoor-static-v6.1.4';
 
 const PRECACHE_URLS = [
   './',
