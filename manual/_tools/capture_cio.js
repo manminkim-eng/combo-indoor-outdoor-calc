@@ -25,7 +25,7 @@ window.__ex=k=>{const e=__EX[k];const x=CIOENG.calc(e.hSys,e.hSegs,e.oSys,e.oSeg
  return {in:e,Fc:x.Fc,cseg:x.cdets.map(d=>({fric:d.fric,tl:d.tl,hl:d.hl,vel:d.vel})),
   H:{...pick(x.H,['A','B','Clpm','D','E','Fc','F','G','H4','I','Jraw','J','hMaxCount','hWaterTime','hL','Plow','needPRV','hStar','pipeOK']),seg:x.H.sdets.map(d=>({fric:d.fric,tl:d.tl,hl:d.hl,vel:d.vel}))},
   O:{...pick(x.O,['A','B','Clpm','D','E','Fc','F','G','H4','I','Jraw','J','hL','Plow','needPRV','hStar','pipeOK']),seg:x.O.sdets.map(d=>({fric:d.fric,tl:d.tl,hl:d.hl,vel:d.vel}))},
-  C:pick(x.C,['hiRise','Clpm','J','D','R','Dt','roofEx','M','N','K','Pkw','Php','hHead','Pdis','hiPress','pipePressOK','velOverN'])};};`;
+  C:pick(x.C,['hiRise','Clpm','J','D','R','Dt','roofEx','M','N','K','Pkw','Php','hHead','Pdis','Pshut','shutUser','hiPress','pipePressOK','velOverN'])};};`;
 const SHOTS=[
  {id:'s01_overview',pre:"__run('A',0)",clip:'viewport',m:[['.tab-bar-scroll','작업 탭 · 매뉴얼'],['.sum-bar','요약 바'],['box:프로젝트 정보','프로젝트 정보'],['box:Ⅰ. 옥내소화전 시스템','옥내소화전 파라미터'],['.fml-fab','계산식 안내']]},
  {id:'s02_header',clip:'nth:.no-print|0',m:[['nth:.tab-bar-scroll button|0','① 옥내소화전 입력'],['nth:.tab-bar-scroll button|1','② 옥외소화전 입력'],['nth:.tab-bar-scroll button|2','③ 겸용펌프 결과'],['nth:.tab-bar-scroll button|3','④ 계산서 출력'],['.tb-manual','📘 매뉴얼'],['.hdr-right-hide','근거 — NFTC 102 + NFTC 109']]},
@@ -34,10 +34,10 @@ const SHOTS=[
  {id:'s05_hseg',clip:'box:Ⅰ-2',crop:560,m:[['nth:#root table tbody tr|0','1구간 — 분기 후 100A 260 L/min'],['nth:#root table tbody tr|2','3구간 — 방수구 50A'],['nth:button|__ADD__','＋ 구간 추가']]},
  {id:'s06_out',pre:"__mmCio.setTab(1)",wait:900,clip:'box:Ⅱ. 옥외소화전 시스템',m:[['lab:A. 옥외소화전 설치개수','A. 설치개수 — 3 → 2개'],['lab:F. 실양정','F. 실양정'],['lab:F-1. 최저 호스접결구','F-1. 최저 호스접결구 높이'],['lab:G. 호스 길이','G. 호스 길이(15 m 단위)'],['lab:G-1. 호스 타입','G-1. 65 mm 호스'],['lab:배관 종류','배관 종류(C값)']]},
  {id:'s07_oseg',clip:'box:Ⅱ-2',crop:560,m:[['nth:#root table tbody tr|0','1구간 — 분기 후 100A 700 L/min'],['nth:#root table tbody tr|2','3구간 — 옥외소화전 65A']]},
- {id:'s08_cparam',pre:"__mmCio.setTab(2)",wait:900,clip:'box:겸용 펌프 파라미터',m:[['lab:펌프 토출구경','펌프 구경'],['lab:펌프 효율','펌프 효율'],['lab:동력 전달방식','전달방식'],['lab:옥상수조','옥상수조 — 옥내 유효수량 1/3'],['lab:공통 배관 종류','공통 배관 종류']]},
+ {id:'s08_cparam',pre:"__mmCio.setTab(2)",wait:900,clip:'box:겸용 펌프 파라미터',m:[['lab:펌프 토출구경','펌프 구경'],['lab:펌프 효율','펌프 효율'],['lab:동력 전달방식','전달방식'],['lab:옥상수조','옥상수조 — 옥내 유효수량 1/3'],['lab:공통 배관 종류','공통 배관 종류'],['lab:S-1. 펌프 체절압력','S-1 체절압력(선택) — 배관 사용압력']]},
  {id:'s09_cseg',clip:'box:Ⅲ-1',crop:420,m:[['nth:#root table tbody tr|0','공통 배관 125A · 960 L/min']]},
  {id:'s10_result',clip:'.g-res-2col',m:[['nth:.g-res-2col > div|0','옥내소화전 단독 — 전양정 50 m'],['nth:.g-res-2col > div|1','옥외소화전 단독 — 전양정 37 m'],['card:공통 배관 (F₀)','공통 배관 F₀ 가산']]},
- {id:'s11_final',clip:'.mm-final',m:[['.mm-basis','겸용 설계 기준'],['nth:.mm-press > div|0','S 배관 사용압력'],['nth:.mm-press > div|1','옥내 최저층 노즐'],['nth:.mm-press > div|2','옥외 최저 노즐'],['.mm-cards4','펌프 선정 결과']]},
+ {id:'s11_final',clip:'.mm-final',m:[['.mm-basis','겸용 설계 기준'],['nth:.mm-press > div|0','S 배관 사용압력 — 체절압력'],['nth:.mm-press > div|1','옥내 최저층 노즐'],['nth:.mm-press > div|2','옥외 최저 노즐'],['.mm-cards4','펌프 선정 결과']]},
  {id:'s12_b_oseg',pre:"__run('B',1)",wait:1000,clip:'box:Ⅱ-2',crop:560,m:[['nth:#root table tbody tr|0','옥외 본관 100A · 220 m']]},
  {id:'s13_b_final',pre:"__mmCio.setTab(2)",wait:1000,clip:'.mm-final',m:[['.mm-basis','옥외 전양정 채택 · 옥상수조 면제']]},
  {id:'s14_c_out',pre:"__run('C',1)",wait:1000,clip:'box:Ⅱ. 옥외소화전 시스템',m:[['lab:F-1. 최저 호스접결구','최저 접결구 −6 m (펌프보다 낮음)']]},
@@ -104,7 +104,7 @@ const SHOTS=[
  ex.mobile=await mp.evaluate(()=>({page:document.documentElement.scrollWidth,vw:innerWidth}));
  fs.writeFileSync(path.join(out,'_marks.json'),JSON.stringify(meta,null,1));fs.writeFileSync(path.join(out,'_example.json'),JSON.stringify(ex,null,1));
  const miss=[];Object.entries(meta).forEach(([k,v])=>v.marks.forEach(m=>{if(m.miss)miss.push(k+':'+m.miss);else if(m.x<0||m.y<0||m.x+m.w>100.5||m.y+m.h>100.5||m.w<=0||m.h<=0)miss.push(k+':OUT '+m.label+' '+m.x+','+m.y+','+m.w+','+m.h);}));
- const sh=o=>o&&{Hj:o.H.J,Oj:o.O.J,Q:o.C.Clpm,D:o.C.D,Dt:o.C.Dt,J:o.C.J,HP:o.C.Php,S:o.C.Pdis};
+ const sh=o=>o&&{Hj:o.H.J,Oj:o.O.J,Q:o.C.Clpm,D:o.C.D,Dt:o.C.Dt,J:o.C.J,HP:o.C.Php,S:o.C.Pdis,Sh:o.C.Pshut,ok:o.C.pipePressOK};
  console.log(JSON.stringify({A:sh(ex.A),B:sh(ex.B),C:sh(ex.C),mobile:ex.mobile,sizes:Object.fromEntries(Object.entries(meta).map(([k,v])=>[k,v.w+'x'+v.h])),miss,errs:errs.slice(0,15)},null,1));
  await b.close();s.close();
 })();

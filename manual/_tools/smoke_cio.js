@@ -9,5 +9,5 @@ await pg.evaluate(()=>window.__mmCio.setShowFormula(true));await pg.waitForTimeo
 const st=await pg.evaluate(()=>window.__mmCio.get());
 r.X=await pg.evaluate(s=>{const x=window.CIOENG.calc(s.hSys,s.hSegs,s.oSys,s.oSegs,s.cPump,s.cSegs,s.buildingFloor);const f=v=>+v.toFixed(3);
  return {Fc:f(x.Fc),H:{A:x.H.A,Q:x.H.Clpm,D:f(x.H.D),F:f(x.H.F),G:f(x.H.G),J:x.H.J,T:f(x.H.Plow),prv:x.H.needPRV},O:{A:x.O.A,Q:x.O.Clpm,D:f(x.O.D),F:f(x.O.F),G:f(x.O.G),J:x.O.J,T:f(x.O.Plow),prv:x.O.needPRV},
-  C:{Q:x.C.Clpm,J:x.C.J,D:f(x.C.D),R:f(x.C.R),Dt:f(x.C.Dt),Pkw:f(x.C.Pkw),HP:x.C.Php,S:f(x.C.Pdis),ok:x.C.pipePressOK,vo:x.C.velOverN,head:x.C.hHead}}},st);
+  C:{Q:x.C.Clpm,J:x.C.J,D:f(x.C.D),R:f(x.C.R),Dt:f(x.C.Dt),Pkw:f(x.C.Pkw),HP:x.C.Php,S:f(x.C.Pdis),Sh:f(x.C.Pshut),ok:x.C.pipePressOK,vo:x.C.velOverN,head:x.C.hHead}}},st);
 console.log(JSON.stringify(r));console.log('ERR',errs.length,errs.slice(0,5).join(' | '));await b.close();srv.close();})();
