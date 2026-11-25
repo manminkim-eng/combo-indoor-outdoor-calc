@@ -8,7 +8,7 @@
      옥외소화전설비의 화재안전기술기준(NFTC 109) 국립소방연구원공고 제2026-9호(2026. 3. 1. 시행) 2.1 · 2.2.1.3 · 2.2.1.4 · 2.2.2.1 · 2.3.1 ~ 2.3.5 · 2.8
      고층건축물의 화재안전기술기준(NFTC 604) 공고 제2023-44호 2.1.1 ~ 2.1.3
    예제 수치는 캡처 때 앱 엔진(window.CIOENG.calc)으로 계산해 기록한 _example.json 에서 가져온다."""
-import os, sys, json, subprocess
+import re, os, sys, json, subprocess
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from manual_engine import fig, T, render, B, MARKS
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -19,9 +19,10 @@ JS = r"""const fs=require('fs');const s=fs.readFileSync(process.argv[1],'utf8');
 const e=s.slice(a,s.indexOf('</script>',a));var window=globalThis;eval(e);console.log(JSON.stringify({PIPE_CONFIG,TRANS_TYPE,H_HOSE_TYPES,O_HOSE_TYPES}));"""
 D = json.loads(subprocess.check_output(['node', '-e', JS, APPHTML]))
 
-VER, REL, DATE = 'Ver-5.1', 'v6.1.4', '2026-10-16'
-UPD = '2026-11-24'   # v6.1.4 — 교차검증 권장 · 권고(합산 근거 · 내진 · 재질 · 체절 안내 · 옥상수조 면제 사유)
-PDF = '겸용펌프_옥내옥외_사용자매뉴얼_Ver-5.1.pdf'
+VER, DATE = 'Ver-6.1', '2026-10-16'
+REL = 'v' + '.'.join(map(str, max(tuple(map(int, v.split('.'))) for v in re.findall(r'v(6\.\d+\.\d+)', open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'sw.js'), encoding='utf-8').read()))))   # 도구 판 = sw.js 캐시 판(2026-11-25 Ver-6.1 표기 통일)
+UPD = '2026-11-25'   # Ver-6.1 표기 통일(판 이름 · PDF 이름 · 대상 프로그램 판), 내용 변경 없음 — 직전 개정 2026-11-24
+PDF = '겸용펌프_옥내옥외_사용자매뉴얼_Ver-6.1.pdf'
 APP_URL = 'https://manminkim-eng.github.io/combo-indoor-outdoor-calc/'
 APP = '겸용 펌프 용량 계산서(옥내소화전 + 옥외소화전)'
 APPS = '겸용 펌프 용량 계산서'
@@ -94,7 +95,7 @@ S_.append(f"""{EXTRA_CSS}<section class="ch" id="ch0"><h2><span class="n">00</sp
 {K(T([
  ['대상 프로그램', f'{APPS} <b>MANMIN {VER}</b>({REL}) — 탭 막대 「📘 매뉴얼」 버튼으로 이 문서가 열립니다'],
  ['접속 주소', f'<a href="{APP_URL}" target="_blank" rel="noopener">manminkim-eng.github.io/combo-indoor-outdoor-calc</a>'],
- ['매뉴얼 판', f'<b>{VER}</b> (화면 표기와 같은 판 번호, 초판 {DATE}) · 개정 {UPD} · 작성 김만민 건축사(㈜대성건축사사무소)'],
+ ['매뉴얼 판', f'<b>{VER}</b> (도구 판 6.1.x와 맞춘 판 번호, 초판 {DATE}) · 개정 {UPD} · 작성 김만민 건축사(㈜대성건축사사무소)'],
  ['내려받기', f'<a href="{PDF}" download>PDF(A4)</a> · <a href="../index.html">{APPS} 열기</a>'],
  ['예제', f'본문 그림은 예제 A(만민 건축사 신사옥 신축공사 현장 — 앱 기본 공사명, 입력값은 예시)로 캡처했습니다 — <b>토출량 {X["Clpm"]:,} L/min · 총 저수량 {f3(X["Dt"])} m³ · 전양정 {X["J"]} m · {X["Php"]:g} HP</b>. 예제 B(물류창고 — 옥외 양정 채택 · 옥상수조 면제) · C(경사지 업무시설 — 옥외 감압장치)는 <a href="#a2">부록 A2</a>'],
  ['근거 법령', f'{LAW} — LawMCP(국가법령정보센터) 원문 대조({DATE})'],
@@ -364,8 +365,9 @@ S_.append(f"""<section class="ch" id="ch7"><h2><span class="n">부록</span></h2
 {BR(T([prow('예제 A', A), prow('예제 B', Bx), prow('예제 C', C)], ['예제', 'F₀(m)', 'S 체절(MPa)', '옥내 노즐(MPa)', '옥외 노즐(MPa)'], num_cols=(1, 2, 3, 4)))}
 <h3 id="a3">A3. 버전 변경 내역</h3>
 {BR(K(T([
- [f'Ver-5.1 · v6.1.4 ({UPD})', '교차검증 권장 · 권고 반영 — 옥상수조 면제 사유 선택(결과 · A4 ③ 표시, 예제 B (4)) · 합산 근거 문구(MANMIN 판단) · 겸용 내진 안내 · 재질 「KS D 3562 또는 3583」 · 체절 · 성능시험배관 · 릴리프 확인 안내 — 계산값 · 판정 변경 없음'],
- [f'Ver-5.1 · v6.1.3 ({UPD})', '배관 사용압력을 체절압력으로 판정(S-1 입력, 없으면 정격 × 1.4 · 소방청 법령해석 412390 — 앱 기본값 J 111 m는 「배관 부적합」, 예제 A · B · C는 그대로) · 입력값 경고 · 1구간 유량 확인 — 수원 · 전양정 · 동력 변경 없음'],
+ [f'Ver-6.1 · {REL} (2026-11-25)', '매뉴얼 판 표기 통일 — Ver-5.1 → Ver-6.1(도구 판 6.1.x와 맞춤) · PDF 이름 「…_Ver-6.1.pdf」 · 대상 프로그램 판 · 작성일 갱신 — 본문 · 계산 · 예제 변경 없음'],
+ ['Ver-6.1 · v6.1.4 (2026-11-24)', '교차검증 권장 · 권고 반영 — 옥상수조 면제 사유 선택(결과 · A4 ③ 표시, 예제 B (4)) · 합산 근거 문구(MANMIN 판단) · 겸용 내진 안내 · 재질 「KS D 3562 또는 3583」 · 체절 · 성능시험배관 · 릴리프 확인 안내 — 계산값 · 판정 변경 없음'],
+ ['Ver-6.1 · v6.1.3 (2026-11-24)', '배관 사용압력을 체절압력으로 판정(S-1 입력, 없으면 정격 × 1.4 · 소방청 법령해석 412390 — 앱 기본값 J 111 m는 「배관 부적합」, 예제 A · B · C는 그대로) · 입력값 경고 · 1구간 유량 확인 — 수원 · 전양정 · 동력 변경 없음'],
  ['Ver-5.1 · v5.1.12 (2026-11-09)', '「🏢 건물개요」 저장 · 불러오기 — 공사명 · 설계자을(를) 다른 MANMIN 도구와 공유, 파일 내보내기 · 가져오기(공통 원본 MM-PROJECT v1.2, 계산 변경 없음)'],
  [f'Ver-5.1 · v5.1.0 ({DATE})', 'NFPC · NFTC 102 · 109 · NFTC 604 원문 대조 근거 정정, 배관 마찰손실 ×100 정정, 공통 배관, 옥상수조, KS 강관 내경, 압력 판정(1.2 MPa · 옥내 · 옥외 0.7 MPa), 고층건축물 겸용 불가 경고, 계산 엔진 단일화, 「📘 매뉴얼」 · 사용자 매뉴얼(<a href="#s4-10">4-10</a>)'],
  ['Ver-5.0 (2026-09)', 'MANMIN 디자인 통일(헤더 · 탭 · 요약 바 · A4 · JPG 저장), PWA'],
