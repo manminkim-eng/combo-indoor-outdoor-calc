@@ -1,4 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
+   v6.1.5 (2026-11-25) — 헤더 고정 — 공통 원본 MM-HEADER v1.1 주입(태블릿 · 데스크톱만 — 폭 768px · 높이 600px 이상, 휴대폰은 고정 없음 · 머리+탭 sticky · 내리면 제목 한 줄+탭으로 접힘 · 다른 sticky 패널 top 보정) — 계산 · 인쇄 불변 · MIN 「추천안대로 승인」 · 「추천안대로 진행해줘」(모바일 제외) · 캐시명 v6.1.5 (종전 v6.1.4)
    v6.1.4 (2026-11-24) — 교차검증(2026-11-23) 권장 · 권고 반영: 합산 근거 문구(P4) · 겸용 내진 안내(P5) · 재질 「또는」 병기(P6) · 체절 · 릴리프 · 성능시험배관 안내 · 옥상수조 면제 사유(P7) · 계산 불변 · 캐시명 v6.1.4 (종전 v6.1.3)
    v6.1.3 (2026-11-24) — 교차검증(2026-11-23) 반영: 배관 사용압력 체절압력 기준(P1) · 입력값 경고(P2) · 구간 유량 확인(P3) · 캐시명 v6.1.3 (종전 v6.1.2)
    v6.1.2 (2026-11-12) — html2canvas 1.4.1 머리 태그 SRI(integrity sha384 · crossorigin) · 공통 인쇄 원본 MM-PRINT v1.0 → v1.1(지연 로더도 SRI)(정밀검토 B8 · html2canvas SRI) — 화면 · 계산 · 인쇄 불변 · 작업지시서 §25-6-87 · 캐시명 v6.1.2 (종전 v6.1.1)
@@ -30,8 +31,8 @@ const mmMatch = (req, opt) => caches.keys()
   .then((ks) => ks.reduce((p, k) => p.then((r) => r || caches.open(k).then((c) => c.match(req, opt))), Promise.resolve(undefined)))
   .then((r) => (r && r.type === 'opaque' && req && req.mode === 'cors') ? undefined : r);
 
-const CACHE_NAME   = 'manmin-indoor-outdoor-v6.1.4';
-const STATIC_CACHE = 'manmin-indoor-outdoor-static-v6.1.4';
+const CACHE_NAME   = 'manmin-indoor-outdoor-v6.1.5';
+const STATIC_CACHE = 'manmin-indoor-outdoor-static-v6.1.5';
 
 const PRECACHE_URLS = [
   './',
